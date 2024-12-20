@@ -9,15 +9,27 @@ import (
 )
 
 type Config struct {
-	Env            string         `yaml:"env" env-default:"local"`
-	Database       DatabaseConfig `yaml:"database"`
-	GRPC           GRPCConfig     `yaml:"GRPC"`
+	Env            string          `yaml:"env" env-default:"local"`
+	Database       DatabaseConfig  `yaml:"database"`
+	GRPC           GRPCConfig      `yaml:"GRPC"`
+	JWTAccess      JWTAccessConfig `yaml:"jwt_access"`
+	JWTRefresh     JWTAccessConfig `yaml:"jwt_refresh"`
 	MigrationsPath string
 }
 
 type GRPCConfig struct {
 	Port    int           `yaml:"port" env-required:"true"`
 	Timeout time.Duration `yaml:"timeout" env-required:"true"`
+}
+
+type JWTAccessConfig struct {
+	Secret   string        `yaml:"secret" env-required:"true"`
+	Duration time.Duration `yaml:"duration" env-required:"true"`
+}
+
+type JWTRefreshConfig struct {
+	Secret   string        `yaml:"secret" env-required:"true"`
+	Duration time.Duration `yaml:"duration" env-required:"true"`
 }
 
 type DatabaseConfig struct {

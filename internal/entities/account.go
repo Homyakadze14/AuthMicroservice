@@ -1,6 +1,9 @@
 package entities
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Account struct {
 	ID        int
@@ -9,4 +12,8 @@ type Account struct {
 	Password  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+func (a Account) String() string {
+	return fmt.Sprintf("Username: %v; Email: %v", a.Username, a.Email)
 }

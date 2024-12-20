@@ -8,3 +8,8 @@ type Token struct {
 	RefreshToken string
 	ExpiresAt    time.Time
 }
+
+type TokenPair struct {
+	AccessToken  string
+	RefreshToken string
+}
