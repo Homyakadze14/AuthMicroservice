@@ -14,18 +14,18 @@ import (
 )
 
 type AccountRepo interface {
-	Create(ctx *context.Context, account *entities.Account) (id int, err error)
-	GetByUsername(ctx *context.Context, username string) (*entities.Account, error)
+	Create(ctx context.Context, account *entities.Account) (id int, err error)
+	GetByUsername(ctx context.Context, username string) (*entities.Account, error)
 }
 
 type TokenRepo interface {
-	Create(ctx *context.Context, token *entities.Token) error
-	Get(ctx *context.Context, refreshToken string) (*entities.Account, error)
+	Create(ctx context.Context, token *entities.Token) error
+	Get(ctx context.Context, refreshToken string) (*entities.Account, error)
 }
 
 type LinkRepo interface {
-	Create(ctx *context.Context, link *entities.Link) error
-	IsActivated(ctx *context.Context, userID int) (bool, error)
+	Create(ctx context.Context, link *entities.Link) error
+	IsActivated(ctx context.Context, userID int) (bool, error)
 }
 
 type AuthService struct {
@@ -55,7 +55,7 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(ctx *context.Context, acc *entities.Account) (*entities.TokenPair, error) {
+func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*entities.TokenPair, error) {
 	const op = "Auth.Register"
 
 	log := s.log.With(
