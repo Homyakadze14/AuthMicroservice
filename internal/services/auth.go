@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,6 +12,10 @@ import (
 	"github.com/Homyakadze14/AuthMicroservice/internal/lib/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrAccountAlreadyExists = errors.New("account with this credentials already exists")
 )
 
 type AccountRepo interface {
@@ -63,7 +68,7 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 		slog.String("acc", acc.String()),
 	)
 
-	log.Info("trying to create account")
+	log.Info("trying to register account")
 	// Hash password
 	passHash, err := bcrypt.GenerateFromPassword([]byte(acc.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -111,6 +116,11 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 		ExpiresAt:    expires_at,
 	}
 	err = s.tokRepo.Create(ctx, token)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("successfully registered account")
 
 	return &entities.TokenPair{
 		AccessToken:  accTok,

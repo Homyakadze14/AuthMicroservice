@@ -1,10 +1,15 @@
 package jwt
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
 	"github.com/golang-jwt/jwt/v5"
+)
+
+var (
+	ErrTokenExpired = errors.New("token expired")
 )
 
 func NewToken(acc *entities.Account, secret string, duration time.Duration) (string, error) {
@@ -21,4 +26,19 @@ func NewToken(acc *entities.Account, secret string, duration time.Duration) (str
 	}
 
 	return tokenString, nil
+}
+
+func ParseToken(token, secret string) (*jwt.Token, error) {
+	jwtToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return nil, ErrTokenExpired
+		}
+		return nil, err
+	}
+
+	return jwtToken, nil
 }
