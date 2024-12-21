@@ -42,6 +42,36 @@ func (_m *AccountRepo) Create(ctx context.Context, account *entities.Account) (i
 	return r0, r1
 }
 
+// GetByEmail provides a mock function with given fields: ctx, email
+func (_m *AccountRepo) GetByEmail(ctx context.Context, email string) (*entities.Account, error) {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByEmail")
+	}
+
+	var r0 *entities.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*entities.Account, error)); ok {
+		return rf(ctx, email)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *entities.Account); ok {
+		r0 = rf(ctx, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entities.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetByUsername provides a mock function with given fields: ctx, username
 func (_m *AccountRepo) GetByUsername(ctx context.Context, username string) (*entities.Account, error) {
 	ret := _m.Called(ctx, username)

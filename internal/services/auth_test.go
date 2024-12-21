@@ -15,9 +15,10 @@ import (
 	"github.com/Homyakadze14/AuthMicroservice/internal/services/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/bcrypt"
 )
 
-type DefaultTestRegData struct {
+type DefaultTestData struct {
 	ctx      context.Context
 	log      *slog.Logger
 	accRepo  *mocks.AccountRepo
@@ -27,7 +28,7 @@ type DefaultTestRegData struct {
 	jwtRef   *config.JWTRefreshConfig
 }
 
-func NewDefaultTestRegData() *DefaultTestRegData {
+func NewDefaultTestData() *DefaultTestData {
 	ctx := context.Background()
 
 	accRepo := &mocks.AccountRepo{}
@@ -51,7 +52,7 @@ func NewDefaultTestRegData() *DefaultTestRegData {
 
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	return &DefaultTestRegData{
+	return &DefaultTestData{
 		log:      log,
 		ctx:      ctx,
 		accRepo:  accRepo,
@@ -63,7 +64,7 @@ func NewDefaultTestRegData() *DefaultTestRegData {
 }
 
 func TestRegister(t *testing.T) {
-	testData := NewDefaultTestRegData()
+	testData := NewDefaultTestData()
 
 	oldPass := "Test"
 	testAcc := &entities.Account{
@@ -106,7 +107,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestRegisterAccountError(t *testing.T) {
-	testData := NewDefaultTestRegData()
+	testData := NewDefaultTestData()
 
 	err := errors.New("test")
 
@@ -122,7 +123,7 @@ func TestRegisterAccountError(t *testing.T) {
 }
 
 func TestRegisterLinkError(t *testing.T) {
-	testData := NewDefaultTestRegData()
+	testData := NewDefaultTestData()
 
 	err := errors.New("test")
 
@@ -138,7 +139,7 @@ func TestRegisterLinkError(t *testing.T) {
 }
 
 func TestRegisterTokenError(t *testing.T) {
-	testData := NewDefaultTestRegData()
+	testData := NewDefaultTestData()
 
 	err := errors.New("test")
 
@@ -151,4 +152,105 @@ func TestRegisterTokenError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, pair)
+}
+
+func TestLoginByUsername(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	pwd := "Test"
+	testAccount := &entities.Account{
+		Username: "Test",
+		Email:    "",
+		Password: pwd,
+	}
+
+	hashPwd, _ := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	bdTestAccount := &entities.Account{
+		Username: "Test",
+		Email:    "Test",
+		Password: string(hashPwd),
+	}
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByUsername", testData.ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	pair, err := service.Login(testData.ctx, testAccount)
+
+	assert.Nil(t, err)
+	assert.NotEmpty(t, pair)
+}
+
+func TestLoginByEmail(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	pwd := "Test"
+	testAccount := &entities.Account{
+		Username: "",
+		Email:    "test@mail.com",
+		Password: pwd,
+	}
+
+	hashPwd, _ := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	bdTestAccount := &entities.Account{
+		Username: "Test",
+		Email:    "test@mail.com",
+		Password: string(hashPwd),
+	}
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	pair, err := service.Login(testData.ctx, testAccount)
+
+	assert.Nil(t, err)
+	assert.NotEmpty(t, pair)
+}
+
+func TestLoginEmptyFieldsError(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	pwd := "Test"
+	testAccount := &entities.Account{
+		Username: "",
+		Email:    "",
+		Password: pwd,
+	}
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	pair, err := service.Login(testData.ctx, testAccount)
+
+	assert.ErrorIs(t, err, ErrBadCredentials)
+	assert.Empty(t, pair)
+}
+
+func TestLoginWrongPasswordError(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	pwd := "Test"
+	testAccount := &entities.Account{
+		Username: "",
+		Email:    "test@mail.com",
+		Password: pwd,
+	}
+
+	hashPwd, _ := bcrypt.GenerateFromPassword([]byte("Test1"), bcrypt.DefaultCost)
+	bdTestAccount := &entities.Account{
+		Username: "Test",
+		Email:    "test@mail.com",
+		Password: string(hashPwd),
+	}
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	pair, err := service.Login(testData.ctx, testAccount)
+
+	assert.ErrorIs(t, err, ErrBadCredentials)
+	assert.Empty(t, pair)
 }

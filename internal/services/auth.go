@@ -16,11 +16,13 @@ import (
 
 var (
 	ErrAccountAlreadyExists = errors.New("account with this credentials already exists")
+	ErrBadCredentials       = errors.New("bad credentials")
 )
 
 type AccountRepo interface {
 	Create(ctx context.Context, account *entities.Account) (id int, err error)
 	GetByUsername(ctx context.Context, username string) (*entities.Account, error)
+	GetByEmail(ctx context.Context, email string) (*entities.Account, error)
 }
 
 type TokenRepo interface {
@@ -121,6 +123,77 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("successfully registered account")
+
+	return &entities.TokenPair{
+		AccessToken:  accTok,
+		RefreshToken: refTok,
+	}, nil
+}
+
+func (s *AuthService) getAccount(ctx context.Context, acc *entities.Account) (*entities.Account, error) {
+	getFunc := s.accRepo.GetByUsername
+	getFuncArg := acc.Username
+	if acc.Username == "" {
+		getFunc = s.accRepo.GetByEmail
+		getFuncArg = acc.Email
+	}
+
+	if getFuncArg == "" {
+		return nil, ErrBadCredentials
+	}
+
+	return getFunc(ctx, getFuncArg)
+}
+
+func (s *AuthService) Login(ctx context.Context, acc *entities.Account) (*entities.TokenPair, error) {
+	const op = "Auth.Login"
+
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("acc", acc.String()),
+	)
+
+	log.Info("trying to login in to account")
+	// Getting account
+	dbAcc, err := s.getAccount(ctx, acc)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Compare passwords
+	err = bcrypt.CompareHashAndPassword([]byte(dbAcc.Password), []byte(acc.Password))
+	if err != nil {
+		log.Error("failed to compare passwords")
+		return nil, fmt.Errorf("%s: %w", op, ErrBadCredentials)
+	}
+
+	// Generate tokens
+	accTok, err := jwt.NewToken(acc, s.jwtAcc.Secret, s.jwtAcc.Duration)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	refTok, err := jwt.NewToken(acc, s.jwtRef.Secret, s.jwtRef.Duration)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Add refresh token to db
+	expires_at := time.Now().Add(s.jwtRef.Duration)
+	token := &entities.Token{
+		UserID:       dbAcc.ID,
+		RefreshToken: refTok,
+		ExpiresAt:    expires_at,
+	}
+	err = s.tokRepo.Create(ctx, token)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("account login completed successfully")
 
 	return &entities.TokenPair{
 		AccessToken:  accTok,
