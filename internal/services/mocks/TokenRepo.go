@@ -32,24 +32,42 @@ func (_m *TokenRepo) Create(ctx context.Context, token *entities.Token) error {
 	return r0
 }
 
+// Delete provides a mock function with given fields: ctx, refreshToken
+func (_m *TokenRepo) Delete(ctx context.Context, refreshToken string) error {
+	ret := _m.Called(ctx, refreshToken)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, refreshToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Get provides a mock function with given fields: ctx, refreshToken
-func (_m *TokenRepo) Get(ctx context.Context, refreshToken string) (*entities.Account, error) {
+func (_m *TokenRepo) Get(ctx context.Context, refreshToken string) (*entities.Token, error) {
 	ret := _m.Called(ctx, refreshToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *entities.Account
+	var r0 *entities.Token
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*entities.Account, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*entities.Token, error)); ok {
 		return rf(ctx, refreshToken)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *entities.Account); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *entities.Token); ok {
 		r0 = rf(ctx, refreshToken)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*entities.Account)
+			r0 = ret.Get(0).(*entities.Token)
 		}
 	}
 

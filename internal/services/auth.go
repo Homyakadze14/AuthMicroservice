@@ -17,6 +17,7 @@ import (
 var (
 	ErrAccountAlreadyExists = errors.New("account with this credentials already exists")
 	ErrBadCredentials       = errors.New("bad credentials")
+	ErrTokenNotFound        = errors.New("token not found")
 )
 
 type AccountRepo interface {
@@ -27,7 +28,8 @@ type AccountRepo interface {
 
 type TokenRepo interface {
 	Create(ctx context.Context, token *entities.Token) error
-	Get(ctx context.Context, refreshToken string) (*entities.Account, error)
+	Get(ctx context.Context, refreshToken string) (*entities.Token, error)
+	Delete(ctx context.Context, refreshToken string) error
 }
 
 type LinkRepo interface {
@@ -199,4 +201,28 @@ func (s *AuthService) Login(ctx context.Context, acc *entities.Account) (*entiti
 		AccessToken:  accTok,
 		RefreshToken: refTok,
 	}, nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, tok *entities.LogoutRequest) error {
+	const op = "Auth.Logout"
+
+	log := s.log.With(
+		slog.String("op", op),
+	)
+
+	log.Info("trying to logout")
+	_, err := s.tokRepo.Get(ctx, tok.RefreshToken)
+	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.tokRepo.Delete(ctx, tok.RefreshToken)
+	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("successfully logout")
+
+	return nil
 }

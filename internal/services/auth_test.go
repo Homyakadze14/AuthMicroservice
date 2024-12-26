@@ -254,3 +254,36 @@ func TestLoginWrongPasswordError(t *testing.T) {
 	assert.ErrorIs(t, err, ErrBadCredentials)
 	assert.Empty(t, pair)
 }
+
+func TestLogout(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
+	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
+	testData.tokRepo = tokenRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err := service.Logout(testData.ctx, refreshToken)
+
+	assert.NoError(t, err)
+}
+
+func TestLogoutErrNotFoundToken(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
+	err := errors.New("test")
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(nil, err).Once()
+	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
+	testData.tokRepo = tokenRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err = service.Logout(testData.ctx, refreshToken)
+
+	assert.Error(t, err)
+}

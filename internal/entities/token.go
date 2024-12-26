@@ -13,3 +13,7 @@ type TokenPair struct {
 	AccessToken  string
 	RefreshToken string
 }
+
+type LogoutRequest struct {
+	RefreshToken string
+}
