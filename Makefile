@@ -11,3 +11,6 @@ migrate-down:
 
 migrate-force:
 	go run cmd/migrator/main.go -storage-url=$(DBURL) -migrations-path=./migrations -fv=1
+
+mock-services:
+	cd ./internal/services && mockery --all

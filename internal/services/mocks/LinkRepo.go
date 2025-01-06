@@ -32,6 +32,36 @@ func (_m *LinkRepo) Create(ctx context.Context, link *entities.Link) error {
 	return r0
 }
 
+// Get provides a mock function with given fields: ctx, link
+func (_m *LinkRepo) Get(ctx context.Context, link string) (*entities.Link, error) {
+	ret := _m.Called(ctx, link)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Get")
+	}
+
+	var r0 *entities.Link
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*entities.Link, error)); ok {
+		return rf(ctx, link)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *entities.Link); ok {
+		r0 = rf(ctx, link)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entities.Link)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, link)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IsActivated provides a mock function with given fields: ctx, userID
 func (_m *LinkRepo) IsActivated(ctx context.Context, userID int) (bool, error) {
 	ret := _m.Called(ctx, userID)
@@ -58,6 +88,24 @@ func (_m *LinkRepo) IsActivated(ctx context.Context, userID int) (bool, error) {
 	}
 
 	return r0, r1
+}
+
+// Update provides a mock function with given fields: ctx, id, link
+func (_m *LinkRepo) Update(ctx context.Context, id int, link *entities.Link) error {
+	ret := _m.Called(ctx, id, link)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, *entities.Link) error); ok {
+		r0 = rf(ctx, id, link)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // NewLinkRepo creates a new instance of LinkRepo. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -35,6 +35,8 @@ type TokenRepo interface {
 type LinkRepo interface {
 	Create(ctx context.Context, link *entities.Link) error
 	IsActivated(ctx context.Context, userID int) (bool, error)
+	Get(ctx context.Context, link string) (*entities.Link, error)
+	Update(ctx context.Context, id int, link *entities.Link) error
 }
 
 type AuthService struct {
@@ -223,6 +225,33 @@ func (s *AuthService) Logout(ctx context.Context, tok *entities.LogoutRequest) e
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("successfully logout")
+
+	return nil
+}
+
+func (s *AuthService) Verify(ctx context.Context, link string) error {
+	const op = "Auth.Logout"
+
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("link", link),
+	)
+
+	log.Info("trying to verify user")
+	bdLink, err := s.linkRepo.Get(ctx, link)
+	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	bdLink.IsActivated = true
+
+	err = s.linkRepo.Update(ctx, bdLink.ID, bdLink)
+	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("verification has been successfully completed")
 
 	return nil
 }

@@ -287,3 +287,82 @@ func TestLogoutErrNotFoundToken(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestLogoutErrDelete(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
+	err := errors.New("test")
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
+	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(err).Once()
+	testData.tokRepo = tokenRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err = service.Logout(testData.ctx, refreshToken)
+
+	assert.Error(t, err)
+}
+
+func TestVerify(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	link := "testlink"
+	bdLink := &entities.Link{
+		ID:          1,
+		UserID:      1,
+		Link:        link,
+		IsActivated: false,
+	}
+
+	linkRepo := &mocks.LinkRepo{}
+	linkRepo.On("Get", testData.ctx, link).Return(bdLink, nil).Once()
+	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(nil).Once()
+	testData.linkRepo = linkRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err := service.Verify(testData.ctx, link)
+
+	assert.NoError(t, err)
+	assert.Equal(t, bdLink.IsActivated, true)
+}
+
+func TestVerifyGetErr(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	link := "testlink"
+	err := errors.New("test")
+
+	linkRepo := &mocks.LinkRepo{}
+	linkRepo.On("Get", testData.ctx, link).Return(nil, err).Once()
+	testData.linkRepo = linkRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err = service.Verify(testData.ctx, link)
+
+	assert.Error(t, err)
+}
+
+func TestVerifyUpdateErr(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	link := "testlink"
+	bdLink := &entities.Link{
+		ID:          1,
+		UserID:      1,
+		Link:        link,
+		IsActivated: false,
+	}
+	err := errors.New("test")
+
+	linkRepo := &mocks.LinkRepo{}
+	linkRepo.On("Get", testData.ctx, link).Return(bdLink, nil).Once()
+	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(err).Once()
+	testData.linkRepo = linkRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	err = service.Verify(testData.ctx, link)
+
+	assert.Error(t, err)
+}
