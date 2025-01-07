@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
 	"github.com/Homyakadze14/AuthMicroservice/internal/services"
 	"github.com/Homyakadze14/AuthMicroservice/pkg/postgres"
+	"github.com/jackc/pgx/v5"
 )
 
 type AccountRepository struct {
@@ -36,5 +38,47 @@ func (r *AccountRepository) Create(ctx context.Context, acc *entities.Account) (
 		return -1, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return id, err
+	return id, nil
+}
+
+func (r *AccountRepository) GetByUsername(ctx context.Context, username string) (*entities.Account, error) {
+	const op = "repositories.AccountRepository.GetByUsername"
+
+	row := r.Pool.QueryRow(
+		ctx,
+		"SELECT (id, username, email, password, created_at, updated_at) FROM account WHERE username=$1",
+		username,
+	)
+
+	acc := &entities.Account{}
+	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, services.ErrAccountNotFound
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return acc, nil
+}
+
+func (r *AccountRepository) GetByEmail(ctx context.Context, email string) (*entities.Account, error) {
+	const op = "repositories.AccountRepository.GetByEmail"
+
+	row := r.Pool.QueryRow(
+		ctx,
+		"SELECT (id, username, email, password, created_at, updated_at) FROM account WHERE username=$1",
+		email,
+	)
+
+	acc := &entities.Account{}
+	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, services.ErrAccountNotFound
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return acc, nil
 }

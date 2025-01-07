@@ -16,8 +16,10 @@ import (
 
 var (
 	ErrAccountAlreadyExists = errors.New("account with this credentials already exists")
+	ErrAccountNotFound      = errors.New("account with this credentials not found")
 	ErrBadCredentials       = errors.New("bad credentials")
 	ErrTokenNotFound        = errors.New("token not found")
+	ErrLinkNotFound         = errors.New("link not found")
 )
 
 type AccountRepo interface {
@@ -34,7 +36,6 @@ type TokenRepo interface {
 
 type LinkRepo interface {
 	Create(ctx context.Context, link *entities.Link) error
-	IsActivated(ctx context.Context, userID int) (bool, error)
 	Get(ctx context.Context, link string) (*entities.Link, error)
 	Update(ctx context.Context, id int, link *entities.Link) error
 }
