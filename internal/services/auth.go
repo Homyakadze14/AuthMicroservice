@@ -40,6 +40,10 @@ type LinkRepo interface {
 	Update(ctx context.Context, id int, link *entities.Link) error
 }
 
+type Mailer interface {
+	SendMail(subject, body string, to string) error
+}
+
 type AuthService struct {
 	log      *slog.Logger
 	accRepo  AccountRepo
@@ -47,6 +51,7 @@ type AuthService struct {
 	linkRepo LinkRepo
 	jwtAcc   *config.JWTAccessConfig
 	jwtRef   *config.JWTRefreshConfig
+	mailer   Mailer
 }
 
 func NewAuthService(
@@ -56,6 +61,7 @@ func NewAuthService(
 	linkRepo LinkRepo,
 	jwtAcc *config.JWTAccessConfig,
 	jwtRef *config.JWTRefreshConfig,
+	mailer Mailer,
 ) *AuthService {
 	return &AuthService{
 		log:      log,
@@ -64,6 +70,7 @@ func NewAuthService(
 		linkRepo: linkRepo,
 		jwtAcc:   jwtAcc,
 		jwtRef:   jwtRef,
+		mailer:   mailer,
 	}
 }
 
@@ -101,6 +108,16 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 		log.Error(err.Error())
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	// Send activation link
+	go func() {
+		subject := "Activation link"
+		body := "Your activation link: " + link.Link
+		err := s.mailer.SendMail(subject, body, acc.Email)
+		if err != nil {
+			log.Error(fmt.Errorf("%s: %w", op, err).Error())
+		}
+	}()
 
 	// Generate tokens
 	accTok, err := jwt.NewToken(acc, s.jwtAcc.Secret, s.jwtAcc.Duration)

@@ -26,6 +26,7 @@ type DefaultTestData struct {
 	linkRepo *mocks.LinkRepo
 	jwtAcc   *config.JWTAccessConfig
 	jwtRef   *config.JWTRefreshConfig
+	mailer   *mocks.Mailer
 }
 
 func NewDefaultTestData() *DefaultTestData {
@@ -52,6 +53,8 @@ func NewDefaultTestData() *DefaultTestData {
 
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	mailer := &mocks.Mailer{}
+
 	return &DefaultTestData{
 		log:      log,
 		ctx:      ctx,
@@ -60,6 +63,7 @@ func NewDefaultTestData() *DefaultTestData {
 		linkRepo: linkRepo,
 		jwtAcc:   jwtAcc,
 		jwtRef:   jwtRef,
+		mailer:   mailer,
 	}
 }
 
@@ -77,8 +81,12 @@ func TestRegister(t *testing.T) {
 	accRepo.On("Create", testData.ctx, testAcc).Return(0, nil).Once()
 	testData.accRepo = accRepo
 
+	mailer := &mocks.Mailer{}
+	mailer.On("SendMail", mock.Anything, mock.Anything, testAcc.Email).Return(nil).Once()
+	testData.mailer = mailer
+
 	t.Log("Check registration")
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Register(testData.ctx, testAcc)
 
 	assert.NotEqual(t, testAcc.Password, oldPass)
@@ -115,7 +123,7 @@ func TestRegisterAccountError(t *testing.T) {
 	accRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.Account")).Return(-1, err).Once()
 	testData.accRepo = accRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
@@ -131,7 +139,7 @@ func TestRegisterLinkError(t *testing.T) {
 	linkRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.Link")).Return(err).Once()
 	testData.linkRepo = linkRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
@@ -147,7 +155,11 @@ func TestRegisterTokenError(t *testing.T) {
 	tokenRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.Token")).Return(err).Once()
 	testData.tokRepo = tokenRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	mailer := &mocks.Mailer{}
+	mailer.On("SendMail", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	testData.mailer = mailer
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
@@ -175,7 +187,7 @@ func TestLoginByUsername(t *testing.T) {
 	accRepo.On("GetByUsername", testData.ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
 	testData.accRepo = accRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Login(testData.ctx, testAccount)
 
 	assert.Nil(t, err)
@@ -203,7 +215,7 @@ func TestLoginByEmail(t *testing.T) {
 	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
 	testData.accRepo = accRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Login(testData.ctx, testAccount)
 
 	assert.Nil(t, err)
@@ -220,7 +232,7 @@ func TestLoginEmptyFieldsError(t *testing.T) {
 		Password: pwd,
 	}
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Login(testData.ctx, testAccount)
 
 	assert.ErrorIs(t, err, ErrBadCredentials)
@@ -248,7 +260,7 @@ func TestLoginWrongPasswordError(t *testing.T) {
 	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
 	testData.accRepo = accRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	pair, err := service.Login(testData.ctx, testAccount)
 
 	assert.ErrorIs(t, err, ErrBadCredentials)
@@ -265,7 +277,7 @@ func TestLogout(t *testing.T) {
 	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
 	testData.tokRepo = tokenRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err := service.Logout(testData.ctx, refreshToken)
 
 	assert.NoError(t, err)
@@ -282,7 +294,7 @@ func TestLogoutErrNotFoundToken(t *testing.T) {
 	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
 	testData.tokRepo = tokenRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err = service.Logout(testData.ctx, refreshToken)
 
 	assert.Error(t, err)
@@ -299,7 +311,7 @@ func TestLogoutErrDelete(t *testing.T) {
 	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(err).Once()
 	testData.tokRepo = tokenRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err = service.Logout(testData.ctx, refreshToken)
 
 	assert.Error(t, err)
@@ -321,7 +333,7 @@ func TestVerify(t *testing.T) {
 	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(nil).Once()
 	testData.linkRepo = linkRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err := service.Verify(testData.ctx, link)
 
 	assert.NoError(t, err)
@@ -338,7 +350,7 @@ func TestVerifyGetErr(t *testing.T) {
 	linkRepo.On("Get", testData.ctx, link).Return(nil, err).Once()
 	testData.linkRepo = linkRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err = service.Verify(testData.ctx, link)
 
 	assert.Error(t, err)
@@ -361,7 +373,7 @@ func TestVerifyUpdateErr(t *testing.T) {
 	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(err).Once()
 	testData.linkRepo = linkRepo
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef)
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
 	err = service.Verify(testData.ctx, link)
 
 	assert.Error(t, err)

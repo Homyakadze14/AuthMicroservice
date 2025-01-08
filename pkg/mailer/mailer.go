@@ -9,27 +9,29 @@ import (
 )
 
 type Mailer struct {
-	Auth smtp.Auth
-	Addr string
+	auth smtp.Auth
+	addr string
+	from string
 }
 
 func New(cfg *config.MailerConfig) *Mailer {
 	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 	return &Mailer{
-		Auth: auth,
-		Addr: cfg.Addr,
+		auth: auth,
+		addr: cfg.Addr,
+		from: cfg.Username,
 	}
 }
 
-func (m *Mailer) SendMail(from, subject, body string, to string) error {
+func (m *Mailer) SendMail(subject, body string, to string) error {
 	msg := "To: " + to + "\r\n" +
-		"From: " + from + "\r\n" +
+		"From: " + m.from + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"Content-Type: text/html; charset=\"UTF-8\"\r\n" +
 		"Content-Transfer-Encoding: base64\r\n" +
 		"\r\n" + base64.StdEncoding.EncodeToString([]byte(body))
 
-	err := smtp.SendMail(m.Addr, m.Auth, from, []string{to}, []byte(msg))
+	err := smtp.SendMail(m.addr, m.auth, m.from, []string{to}, []byte(msg))
 	if err != nil {
 		log.Fatal(err)
 		return err
