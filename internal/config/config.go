@@ -37,6 +37,13 @@ type DatabaseConfig struct {
 	PoolMax int    `yaml:"pool_max" env-required:"true"`
 }
 
+type MailerConfig struct {
+	Username string `yaml:"username" env-required:"true"`
+	Password string `yaml:"password" env-required:"true"`
+	Host     string `yaml:"host" env-required:"true"`
+	Addr     string `yaml:"addr" env-required:"true"`
+}
+
 func MustLoad() *Config {
 	configPath := fetchConfigPath()
 	if configPath == "" {

@@ -15,3 +15,9 @@ jwt_access:
 jwt_refresh:
   secret: "jwt_refresh_secret_key"
   duration: 30d
+
+mailer:
+  username: "username"
+  password: "password"
+  host: "host"
+  addr: "addr"
