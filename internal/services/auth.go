@@ -74,7 +74,7 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*entities.TokenPair, error) {
+func (s *AuthService) Register(ctx context.Context, acc *entities.Account) error {
 	const op = "Auth.Register"
 
 	log := s.log.With(
@@ -87,7 +87,7 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 	passHash, err := bcrypt.GenerateFromPassword([]byte(acc.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error("failed to generate password hash")
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 	acc.Password = string(passHash)
 
@@ -95,7 +95,7 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 	uid, err := s.accRepo.Create(ctx, acc)
 	if err != nil {
 		log.Error(err.Error())
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Create activation link
@@ -106,7 +106,7 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 	err = s.linkRepo.Create(ctx, link)
 	if err != nil {
 		log.Error(err.Error())
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Send activation link
@@ -118,38 +118,9 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) (*ent
 			log.Error(fmt.Errorf("%s: %w", op, err).Error())
 		}
 	}()
-
-	// Generate tokens
-	accTok, err := jwt.NewToken(acc, s.jwtAcc.Secret, s.jwtAcc.Duration)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	refTok, err := jwt.NewToken(acc, s.jwtRef.Secret, s.jwtRef.Duration)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	// Add refresh token to db
-	expires_at := time.Now().Add(s.jwtRef.Duration)
-	token := &entities.Token{
-		UserID:       uid,
-		RefreshToken: refTok,
-		ExpiresAt:    expires_at,
-	}
-	err = s.tokRepo.Create(ctx, token)
-	if err != nil {
-		log.Error(err.Error())
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
 	log.Info("successfully registered account")
 
-	return &entities.TokenPair{
-		AccessToken:  accTok,
-		RefreshToken: refTok,
-	}, nil
+	return nil
 }
 
 func (s *AuthService) getAccount(ctx context.Context, acc *entities.Account) (*entities.Account, error) {

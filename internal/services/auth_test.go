@@ -87,31 +87,10 @@ func TestRegister(t *testing.T) {
 
 	t.Log("Check registration")
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	pair, err := service.Register(testData.ctx, testAcc)
+	err := service.Register(testData.ctx, testAcc)
 
 	assert.NotEqual(t, testAcc.Password, oldPass)
 	assert.Nil(t, err)
-	assert.NotEmpty(t, pair)
-
-	t.Log("Check token expiration")
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		time.Sleep(testData.jwtAcc.Duration)
-		_, err := jwt.ParseToken(pair.AccessToken, testData.jwtAcc.Secret)
-		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
-	}()
-
-	go func() {
-		defer wg.Done()
-		time.Sleep(testData.jwtRef.Duration)
-		_, err := jwt.ParseToken(pair.RefreshToken, testData.jwtRef.Secret)
-		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
-	}()
-
-	wg.Wait()
 }
 
 func TestRegisterAccountError(t *testing.T) {
@@ -124,10 +103,9 @@ func TestRegisterAccountError(t *testing.T) {
 	testData.accRepo = accRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	pair, err := service.Register(testData.ctx, &entities.Account{})
+	err = service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
-	assert.Nil(t, pair)
 }
 
 func TestRegisterLinkError(t *testing.T) {
@@ -140,10 +118,9 @@ func TestRegisterLinkError(t *testing.T) {
 	testData.linkRepo = linkRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	pair, err := service.Register(testData.ctx, &entities.Account{})
+	err = service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
-	assert.Nil(t, pair)
 }
 
 func TestRegisterTokenError(t *testing.T) {
@@ -160,10 +137,9 @@ func TestRegisterTokenError(t *testing.T) {
 	testData.mailer = mailer
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	pair, err := service.Register(testData.ctx, &entities.Account{})
+	err = service.Register(testData.ctx, &entities.Account{})
 
 	assert.Error(t, err)
-	assert.Nil(t, pair)
 }
 
 func TestLoginByUsername(t *testing.T) {
@@ -220,6 +196,55 @@ func TestLoginByEmail(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, pair)
+}
+
+func TestTokenExpiration(t *testing.T) {
+	t.Parallel()
+	testData := NewDefaultTestData()
+
+	pwd := "Test"
+	testAccount := &entities.Account{
+		Username: "Test",
+		Email:    "",
+		Password: pwd,
+	}
+
+	hashPwd, _ := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	bdTestAccount := &entities.Account{
+		Username: "Test",
+		Email:    "Test",
+		Password: string(hashPwd),
+	}
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByUsername", testData.ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
+	pair, err := service.Login(testData.ctx, testAccount)
+
+	assert.Nil(t, err)
+	assert.NotEmpty(t, pair)
+
+	t.Log("Check token expiration")
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(testData.jwtAcc.Duration)
+		_, err := jwt.ParseToken(pair.AccessToken, testData.jwtAcc.Secret)
+		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(testData.jwtRef.Duration)
+		_, err := jwt.ParseToken(pair.RefreshToken, testData.jwtRef.Secret)
+		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
+	}()
+
+	wg.Wait()
 }
 
 func TestLoginEmptyFieldsError(t *testing.T) {

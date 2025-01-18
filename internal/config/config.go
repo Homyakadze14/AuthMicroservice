@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Env            string          `yaml:"env" env-default:"local"`
-	Database       DatabaseConfig  `yaml:"database"`
-	GRPC           GRPCConfig      `yaml:"GRPC"`
-	JWTAccess      JWTAccessConfig `yaml:"jwt_access"`
-	JWTRefresh     JWTAccessConfig `yaml:"jwt_refresh"`
+	Env            string           `yaml:"env" env-default:"local"`
+	Database       DatabaseConfig   `yaml:"database"`
+	GRPC           GRPCConfig       `yaml:"GRPC"`
+	JWTAccess      JWTAccessConfig  `yaml:"jwt_access"`
+	JWTRefresh     JWTRefreshConfig `yaml:"jwt_refresh"`
 	MigrationsPath string
+	Mailer         MailerConfig `yaml:"mailer"`
 }
 
 type GRPCConfig struct {
