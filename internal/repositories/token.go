@@ -25,8 +25,7 @@ func (r *TokenRepository) Create(ctx context.Context, token *entities.Token) err
 	_, err := r.Pool.Exec(
 		ctx,
 		"INSERT INTO token(user_id, refresh_token, expires_at) VALUES ($1, $2, $3)",
-		token.UserID, token.RefreshToken, token.ExpiresAt,
-	)
+		token.UserID, token.RefreshToken, token.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -39,9 +38,8 @@ func (r *TokenRepository) Get(ctx context.Context, refreshToken string) (*entiti
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT (id, user_id, refresh_token, expires_at) FROM token WHERE username=$1",
-		refreshToken,
-	)
+		"SELECT id, user_id, refresh_token, expires_at FROM token WHERE refresh_token=$1",
+		refreshToken)
 
 	token := &entities.Token{}
 	err := row.Scan(&token.ID, &token.UserID, &token.RefreshToken, &token.ExpiresAt)
@@ -61,8 +59,7 @@ func (r *TokenRepository) Delete(ctx context.Context, refreshToken string) error
 	_, err := r.Pool.Exec(
 		ctx,
 		"DELETE FROM token WHERE refresh_token=$1",
-		refreshToken,
-	)
+		refreshToken)
 
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

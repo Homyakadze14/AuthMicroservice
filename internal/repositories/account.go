@@ -27,8 +27,7 @@ func (r *AccountRepository) Create(ctx context.Context, acc *entities.Account) (
 	row := r.Pool.QueryRow(
 		ctx,
 		"INSERT INTO account(username, email, password, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		acc.Username, acc.Email, acc.Password, time.Now(), time.Now(),
-	)
+		acc.Username, acc.Email, acc.Password, time.Now(), time.Now())
 
 	err = row.Scan(&id)
 	if err != nil {
@@ -46,9 +45,8 @@ func (r *AccountRepository) GetByUsername(ctx context.Context, username string) 
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT (id, username, email, password, created_at, updated_at) FROM account WHERE username=$1",
-		username,
-	)
+		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE username=$1",
+		username)
 
 	acc := &entities.Account{}
 	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)
@@ -67,9 +65,8 @@ func (r *AccountRepository) GetByEmail(ctx context.Context, email string) (*enti
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT (id, username, email, password, created_at, updated_at) FROM account WHERE username=$1",
-		email,
-	)
+		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE email=$1",
+		email)
 
 	acc := &entities.Account{}
 	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 
+	authgrpc "github.com/Homyakadze14/AuthMicroservice/internal/controller"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"google.golang.org/grpc"
@@ -21,6 +22,7 @@ type App struct {
 
 func New(
 	log *slog.Logger,
+	authService authgrpc.Auth,
 	port int,
 ) *App {
 	loggingOpts := []logging.Option{
@@ -41,6 +43,8 @@ func New(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
+
+	authgrpc.Register(gRPCServer, authService)
 
 	return &App{
 		log:        log,
