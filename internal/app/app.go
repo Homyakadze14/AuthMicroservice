@@ -7,6 +7,9 @@ import (
 
 	grpcapp "github.com/Homyakadze14/AuthMicroservice/internal/app/grpc"
 	"github.com/Homyakadze14/AuthMicroservice/internal/config"
+	"github.com/Homyakadze14/AuthMicroservice/internal/repositories"
+	"github.com/Homyakadze14/AuthMicroservice/internal/services"
+	"github.com/Homyakadze14/AuthMicroservice/pkg/mailer"
 	"github.com/Homyakadze14/AuthMicroservice/pkg/postgres"
 )
 
@@ -27,11 +30,18 @@ func Run(
 	}
 
 	// Repository
+	accRepo := repositories.NewAccountRepository(pg)
+	tokenRepo := repositories.NewTokenRepository(pg)
+	linkRepo := repositories.NewLinkRepository(pg)
+
+	// Mailer
+	mailer := mailer.New(&cfg.Mailer)
 
 	// Services
+	auth := services.NewAuthService(log, accRepo, tokenRepo, linkRepo, &cfg.JWTAccess, &cfg.JWTRefresh, mailer)
 
 	// GRPC
-	gRPCServer := grpcapp.New(log, cfg.GRPC.Port)
+	gRPCServer := grpcapp.New(log, auth, cfg.GRPC.Port)
 
 	return &App{
 		db:         pg,

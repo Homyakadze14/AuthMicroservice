@@ -1,0 +1,23 @@
+env: "local"  
+
+GRPC:
+  port: 5000
+  timeout: 5s
+
+database:
+  url: "postgres://postgres:postgres@localhost:5433/authmicroservice"  
+  pool_max: 2
+
+jwt_access:
+  secret: "jwt_access_secret_key"
+  duration: 15m
+
+jwt_refresh:
+  secret: "jwt_refresh_secret_key"
+  duration: 30d
+
+mailer:
+  username: "username"
+  password: "password"
+  host: "host"
+  addr: "addr"

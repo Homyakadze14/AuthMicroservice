@@ -1,9 +1,0 @@
-env: "local"  
-
-GRPC:
-  port: 5000
-  timeout: 5s
-
-database:
-  url: "postgres://postgres:postgres@localhost:5433/authmicroservice"  
-  pool_max: 2
