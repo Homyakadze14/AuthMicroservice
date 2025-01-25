@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
+	"github.com/Homyakadze14/AuthMicroservice/internal/lib/jwt"
 	"github.com/Homyakadze14/AuthMicroservice/internal/services"
 	authv1 "github.com/Homyakadze14/AuthMicroservice/proto/gen/auth"
 	"google.golang.org/grpc"
@@ -23,6 +24,7 @@ type Auth interface {
 	Logout(ctx context.Context, tok *entities.LogoutRequest) error
 	ActivateAccount(ctx context.Context, link string) error
 	Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error)
+	Verify(ctx context.Context, accToken string) (bool, error)
 }
 
 func Register(gRPCServer *grpc.Server, auth Auth) {
@@ -57,7 +59,7 @@ func (s *serverAPI) Login(
 		}
 
 		if errors.Is(err, services.ErrNotActivated) {
-			return nil, status.Error(codes.NotFound, "account not activated")
+			return nil, status.Error(codes.Unauthenticated, "account not activated")
 		}
 
 		return nil, status.Error(codes.Internal, "failed to login")
@@ -139,7 +141,7 @@ func (s *serverAPI) ActivateAccount(
 			return nil, status.Error(codes.NotFound, "link not found")
 		}
 
-		return nil, status.Error(codes.Internal, "failed to actuvate account")
+		return nil, status.Error(codes.Internal, "failed to activate account")
 	}
 
 	return &authv1.ActivateAccountResponse{Success: true}, nil
@@ -162,11 +164,30 @@ func (s *serverAPI) Refresh(
 			return nil, status.Error(codes.NotFound, "token not found")
 		}
 
-		return nil, status.Error(codes.Internal, "failed to verify")
+		return nil, status.Error(codes.Internal, "failed to refresh")
 	}
 
 	return &authv1.RefreshResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 	}, nil
+}
+
+func (s *serverAPI) Verify(
+	ctx context.Context,
+	in *authv1.VerifyRequest,
+) (*authv1.VerifyResponse, error) {
+	if in.AccessToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "access token is required")
+	}
+
+	verified, err := s.auth.Verify(ctx, in.AccessToken)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, status.Error(codes.Unauthenticated, "token expired")
+		}
+		return nil, status.Error(codes.Internal, "failed to verify")
+	}
+
+	return &authv1.VerifyResponse{Verified: verified}, nil
 }

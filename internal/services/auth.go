@@ -265,7 +265,6 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*entiti
 
 	log := s.log.With(
 		slog.String("op", op),
-		slog.String("refreshToken", refreshToken),
 	)
 
 	log.Info("trying to refresh token")
@@ -292,4 +291,22 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*entiti
 	log.Info("refreshing has been successfully completed")
 
 	return &entities.TokenPair{RefreshToken: refreshToken, AccessToken: accTok}, nil
+}
+
+func (s *AuthService) Verify(ctx context.Context, accToken string) (bool, error) {
+	const op = "Auth.Verify"
+
+	log := s.log.With(
+		slog.String("op", op),
+	)
+
+	log.Info("trying to verify")
+	_, err := jwt.ParseToken(accToken, s.jwtAcc.Secret)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("verification has been successfully completed")
+
+	return true, nil
 }

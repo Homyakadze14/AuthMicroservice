@@ -187,7 +187,7 @@ func TestLoginByEmail(t *testing.T) {
 	assert.NotEmpty(t, pair)
 }
 
-func TestTokenExpiration(t *testing.T) {
+func TestTokenExpirationAndVerification(t *testing.T) {
 	t.Parallel()
 	testData := NewDefaultTestData()
 
@@ -223,11 +223,16 @@ func TestTokenExpiration(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
+	verified, err := service.Verify(testData.ctx, pair.AccessToken)
+	assert.NoError(t, err, jwt.ErrTokenExpired)
+	assert.True(t, verified)
+
 	go func() {
 		defer wg.Done()
 		time.Sleep(testData.jwtAcc.Duration)
-		_, err := jwt.ParseToken(pair.AccessToken, testData.jwtAcc.Secret)
+		verified, err := service.Verify(testData.ctx, pair.AccessToken)
 		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
+		assert.False(t, verified)
 	}()
 
 	go func() {
