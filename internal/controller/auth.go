@@ -56,6 +56,10 @@ func (s *serverAPI) Login(
 			return nil, status.Error(codes.NotFound, "account not found")
 		}
 
+		if errors.Is(err, services.ErrNotActivated) {
+			return nil, status.Error(codes.NotFound, "account not activated")
+		}
+
 		return nil, status.Error(codes.Internal, "failed to login")
 	}
 

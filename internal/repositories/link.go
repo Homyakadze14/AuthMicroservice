@@ -53,6 +53,26 @@ func (r *LinkRepository) Get(ctx context.Context, link string) (*entities.Link, 
 	return dblink, nil
 }
 
+func (r *LinkRepository) IsActivated(ctx context.Context, uid int) (bool, error) {
+	const op = "repositories.LinkRepository.IsActivated"
+
+	row := r.Pool.QueryRow(
+		ctx,
+		"SELECT is_activated FROM link WHERE user_id=$1",
+		uid)
+
+	var isActivated bool
+	err := row.Scan(&isActivated)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, services.ErrLinkNotFound
+		}
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return isActivated, nil
+}
+
 func (r *LinkRepository) Update(ctx context.Context, id int, link *entities.Link) error {
 	const op = "repositories.LinkRepository.Update"
 

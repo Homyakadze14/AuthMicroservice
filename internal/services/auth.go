@@ -21,6 +21,7 @@ var (
 	ErrBadCredentials       = errors.New("bad credentials")
 	ErrTokenNotFound        = errors.New("token not found")
 	ErrLinkNotFound         = errors.New("link not found")
+	ErrNotActivated         = errors.New("not activated account")
 )
 
 type AccountRepo interface {
@@ -40,6 +41,7 @@ type LinkRepo interface {
 	Create(ctx context.Context, link *entities.Link) error
 	Get(ctx context.Context, link string) (*entities.Link, error)
 	Update(ctx context.Context, id int, link *entities.Link) error
+	IsActivated(ctx context.Context, uid int) (bool, error)
 }
 
 type Mailer interface {
@@ -166,6 +168,12 @@ func (s *AuthService) Login(ctx context.Context, acc *entities.Account) (*entiti
 	if err != nil {
 		log.Error("failed to compare passwords")
 		return nil, fmt.Errorf("%s: %w", op, ErrBadCredentials)
+	}
+
+	// Check activation
+	isActiv, err := s.linkRepo.IsActivated(ctx, dbAcc.ID)
+	if err != nil || !isActiv {
+		return nil, fmt.Errorf("%s: %w", op, ErrNotActivated)
 	}
 
 	// Generate tokens

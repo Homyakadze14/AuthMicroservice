@@ -62,6 +62,34 @@ func (_m *LinkRepo) Get(ctx context.Context, link string) (*entities.Link, error
 	return r0, r1
 }
 
+// IsActivated provides a mock function with given fields: ctx, uid
+func (_m *LinkRepo) IsActivated(ctx context.Context, uid int) (bool, error) {
+	ret := _m.Called(ctx, uid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsActivated")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (bool, error)); ok {
+		return rf(ctx, uid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) bool); ok {
+		r0 = rf(ctx, uid)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, uid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Update provides a mock function with given fields: ctx, id, link
 func (_m *LinkRepo) Update(ctx context.Context, id int, link *entities.Link) error {
 	ret := _m.Called(ctx, id, link)
