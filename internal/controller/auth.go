@@ -21,7 +21,7 @@ type Auth interface {
 	Login(ctx context.Context, acc *entities.Account) (*entities.TokenPair, error)
 	Register(ctx context.Context, acc *entities.Account) error
 	Logout(ctx context.Context, tok *entities.LogoutRequest) error
-	Verify(ctx context.Context, link string) error
+	ActivateAccount(ctx context.Context, link string) error
 	Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error)
 }
 
@@ -125,24 +125,24 @@ func (s *serverAPI) Logout(
 	return &authv1.LogoutResponse{Success: true}, nil
 }
 
-func (s *serverAPI) Verify(
+func (s *serverAPI) ActivateAccount(
 	ctx context.Context,
-	in *authv1.VerifyRequest,
-) (*authv1.VerifyResponse, error) {
+	in *authv1.ActivateAccountRequest,
+) (*authv1.ActivateAccountResponse, error) {
 	if in.Link == "" {
 		return nil, status.Error(codes.InvalidArgument, "link is required")
 	}
 
-	err := s.auth.Verify(ctx, in.Link)
+	err := s.auth.ActivateAccount(ctx, in.Link)
 	if err != nil {
 		if errors.Is(err, services.ErrLinkNotFound) {
 			return nil, status.Error(codes.NotFound, "link not found")
 		}
 
-		return nil, status.Error(codes.Internal, "failed to verify")
+		return nil, status.Error(codes.Internal, "failed to actuvate account")
 	}
 
-	return &authv1.VerifyResponse{Success: true}, nil
+	return &authv1.ActivateAccountResponse{Success: true}, nil
 }
 
 func (s *serverAPI) Refresh(

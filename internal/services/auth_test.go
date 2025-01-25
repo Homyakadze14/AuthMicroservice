@@ -367,7 +367,7 @@ func TestLogoutErrDelete(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestVerify(t *testing.T) {
+func TestActivateAccount(t *testing.T) {
 	testData := NewDefaultTestData()
 
 	link := "testlink"
@@ -384,13 +384,13 @@ func TestVerify(t *testing.T) {
 	testData.linkRepo = linkRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	err := service.Verify(testData.ctx, link)
+	err := service.ActivateAccount(testData.ctx, link)
 
 	assert.NoError(t, err)
 	assert.Equal(t, bdLink.IsActivated, true)
 }
 
-func TestVerifyGetErr(t *testing.T) {
+func TestActivateAccountGetErr(t *testing.T) {
 	testData := NewDefaultTestData()
 
 	link := "testlink"
@@ -401,12 +401,12 @@ func TestVerifyGetErr(t *testing.T) {
 	testData.linkRepo = linkRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	err = service.Verify(testData.ctx, link)
+	err = service.ActivateAccount(testData.ctx, link)
 
 	assert.Error(t, err)
 }
 
-func TestVerifyUpdateErr(t *testing.T) {
+func TestActivateAccountUpdateErr(t *testing.T) {
 	testData := NewDefaultTestData()
 
 	link := "testlink"
@@ -424,7 +424,7 @@ func TestVerifyUpdateErr(t *testing.T) {
 	testData.linkRepo = linkRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
-	err = service.Verify(testData.ctx, link)
+	err = service.ActivateAccount(testData.ctx, link)
 
 	assert.Error(t, err)
 }

@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auth_Login_FullMethodName    = "/Auth/Login"
-	Auth_Register_FullMethodName = "/Auth/Register"
-	Auth_Logout_FullMethodName   = "/Auth/Logout"
-	Auth_Verify_FullMethodName   = "/Auth/Verify"
-	Auth_Refresh_FullMethodName  = "/Auth/Refresh"
+	Auth_Login_FullMethodName           = "/Auth/Login"
+	Auth_Register_FullMethodName        = "/Auth/Register"
+	Auth_Logout_FullMethodName          = "/Auth/Logout"
+	Auth_ActivateAccount_FullMethodName = "/Auth/ActivateAccount"
+	Auth_Refresh_FullMethodName         = "/Auth/Refresh"
 )
 
 // AuthClient is the client API for Auth service.
@@ -33,7 +33,7 @@ type AuthClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
-	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
+	ActivateAccount(ctx context.Context, in *ActivateAccountRequest, opts ...grpc.CallOption) (*ActivateAccountResponse, error)
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
 }
 
@@ -75,10 +75,10 @@ func (c *authClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc
 	return out, nil
 }
 
-func (c *authClient) Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error) {
+func (c *authClient) ActivateAccount(ctx context.Context, in *ActivateAccountRequest, opts ...grpc.CallOption) (*ActivateAccountResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(VerifyResponse)
-	err := c.cc.Invoke(ctx, Auth_Verify_FullMethodName, in, out, cOpts...)
+	out := new(ActivateAccountResponse)
+	err := c.cc.Invoke(ctx, Auth_ActivateAccount_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ type AuthServer interface {
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
-	Verify(context.Context, *VerifyRequest) (*VerifyResponse, error)
+	ActivateAccount(context.Context, *ActivateAccountRequest) (*ActivateAccountResponse, error)
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
@@ -123,8 +123,8 @@ func (UnimplementedAuthServer) Register(context.Context, *RegisterRequest) (*Reg
 func (UnimplementedAuthServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
 }
-func (UnimplementedAuthServer) Verify(context.Context, *VerifyRequest) (*VerifyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Verify not implemented")
+func (UnimplementedAuthServer) ActivateAccount(context.Context, *ActivateAccountRequest) (*ActivateAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ActivateAccount not implemented")
 }
 func (UnimplementedAuthServer) Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Refresh not implemented")
@@ -204,20 +204,20 @@ func _Auth_Logout_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_Verify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VerifyRequest)
+func _Auth_ActivateAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ActivateAccountRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).Verify(ctx, in)
+		return srv.(AuthServer).ActivateAccount(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_Verify_FullMethodName,
+		FullMethod: Auth_ActivateAccount_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Verify(ctx, req.(*VerifyRequest))
+		return srv.(AuthServer).ActivateAccount(ctx, req.(*ActivateAccountRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -260,8 +260,8 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Auth_Logout_Handler,
 		},
 		{
-			MethodName: "Verify",
-			Handler:    _Auth_Verify_Handler,
+			MethodName: "ActivateAccount",
+			Handler:    _Auth_ActivateAccount_Handler,
 		},
 		{
 			MethodName: "Refresh",

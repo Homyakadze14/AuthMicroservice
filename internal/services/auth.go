@@ -233,15 +233,15 @@ func (s *AuthService) Logout(ctx context.Context, tok *entities.LogoutRequest) e
 	return nil
 }
 
-func (s *AuthService) Verify(ctx context.Context, link string) error {
-	const op = "Auth.Logout"
+func (s *AuthService) ActivateAccount(ctx context.Context, link string) error {
+	const op = "Auth.ActivateAccount"
 
 	log := s.log.With(
 		slog.String("op", op),
 		slog.String("link", link),
 	)
 
-	log.Info("trying to verify user")
+	log.Info("trying to activate account")
 	bdLink, err := s.linkRepo.Get(ctx, link)
 	if err != nil {
 		log.Error(err.Error())
@@ -255,7 +255,7 @@ func (s *AuthService) Verify(ctx context.Context, link string) error {
 		log.Error(err.Error())
 		return fmt.Errorf("%s: %w", op, err)
 	}
-	log.Info("verification has been successfully completed")
+	log.Info("activation has been successfully completed")
 
 	return nil
 }

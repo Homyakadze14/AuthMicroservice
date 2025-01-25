@@ -6,7 +6,7 @@ service Auth {
     rpc Login(LoginRequest) returns (LoginResponse);
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc Logout(LogoutRequest) returns (LogoutResponse);
-    rpc Verify(VerifyRequest) returns (VerifyResponse);
+    rpc ActivateAccount(ActivateAccountRequest) returns (ActivateAccountResponse);
     rpc Refresh(RefreshRequest) returns (RefreshResponse);
 }
 
@@ -39,11 +39,11 @@ message LogoutResponse {
     bool success = 1;
 }
 
-message VerifyRequest {
+message ActivateAccountRequest {
     string link=1;
 }
 
-message VerifyResponse {
+message ActivateAccountResponse {
     bool success = 1;
 }
 
