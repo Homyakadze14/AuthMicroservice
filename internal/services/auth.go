@@ -45,7 +45,7 @@ type LinkRepo interface {
 }
 
 type Mailer interface {
-	SendMail(subject, body string, to string) error
+	SendActivationMail(email, link string) error
 }
 
 type AuthService struct {
@@ -115,9 +115,7 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) error
 
 	// Send activation link
 	go func() {
-		subject := "Activation link"
-		body := "Your activation link: " + link.Link
-		err := s.mailer.SendMail(subject, body, acc.Email)
+		err := s.mailer.SendActivationMail(acc.Email, link.Link)
 		if err != nil {
 			log.Error(fmt.Errorf("%s: %w", op, err).Error())
 		}

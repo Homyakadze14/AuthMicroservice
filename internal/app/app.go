@@ -7,6 +7,7 @@ import (
 
 	grpcapp "github.com/Homyakadze14/AuthMicroservice/internal/app/grpc"
 	"github.com/Homyakadze14/AuthMicroservice/internal/config"
+	actLinkMailer "github.com/Homyakadze14/AuthMicroservice/internal/lib/mailer"
 	"github.com/Homyakadze14/AuthMicroservice/internal/repositories"
 	"github.com/Homyakadze14/AuthMicroservice/internal/services"
 	"github.com/Homyakadze14/AuthMicroservice/pkg/mailer"
@@ -35,7 +36,7 @@ func Run(
 	linkRepo := repositories.NewLinkRepository(pg)
 
 	// Mailer
-	mailer := mailer.New(&cfg.Mailer)
+	mailer := actLinkMailer.New(cfg.Mailer.ActivationUrl, mailer.New(&cfg.Mailer))
 
 	// Services
 	auth := services.NewAuthService(log, accRepo, tokenRepo, linkRepo, &cfg.JWTAccess, &cfg.JWTRefresh, mailer)

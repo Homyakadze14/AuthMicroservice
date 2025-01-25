@@ -39,10 +39,11 @@ type DatabaseConfig struct {
 }
 
 type MailerConfig struct {
-	Username string `yaml:"username" env-required:"true"`
-	Password string `yaml:"password" env-required:"true"`
-	Host     string `yaml:"host" env-required:"true"`
-	Addr     string `yaml:"addr" env-required:"true"`
+	ActivationUrl string `yaml:"activation_url" env-required:"true"`
+	Username      string `yaml:"username" env-required:"true"`
+	Password      string `yaml:"password" env-required:"true"`
+	Host          string `yaml:"host" env-required:"true"`
+	Addr          string `yaml:"addr" env-required:"true"`
 }
 
 func MustLoad() *Config {

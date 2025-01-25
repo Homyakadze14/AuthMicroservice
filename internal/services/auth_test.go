@@ -82,7 +82,7 @@ func TestRegister(t *testing.T) {
 	testData.accRepo = accRepo
 
 	mailer := &mocks.Mailer{}
-	mailer.On("SendMail", mock.Anything, mock.Anything, testAcc.Email).Return(nil).Once()
+	mailer.On("SendActivationMail", testAcc.Email, mock.Anything).Return(nil).Once()
 	testData.mailer = mailer
 
 	t.Log("Check registration")
@@ -437,14 +437,17 @@ func TestActivateAccountUpdateErr(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	testData := NewDefaultTestData()
 
-	refreshToken := "testtoken"
+	testAcc := &entities.Account{ID: 1, Username: "test"}
+	refreshToken, _ := jwt.NewToken(testAcc, testData.jwtRef.Secret, testData.jwtRef.Duration)
+
+	t.Log(refreshToken)
 
 	tokenRepo := &mocks.TokenRepo{}
 	tokenRepo.On("Get", testData.ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
 	testData.tokRepo = tokenRepo
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUserID", testData.ctx, "1").Return(&entities.Account{ID: 1, Username: "test"}, nil).Once()
+	accRepo.On("GetByUserID", testData.ctx, "1").Return(testAcc, nil).Once()
 	testData.accRepo = accRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)

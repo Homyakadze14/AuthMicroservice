@@ -17,6 +17,7 @@ jwt_refresh:
   duration: 30d
 
 mailer:
+  activation_url: "http://localhost:5000/activate/"
   username: "username"
   password: "password"
   host: "host"
