@@ -163,6 +163,9 @@ func (s *serverAPI) Refresh(
 		if errors.Is(err, services.ErrTokenNotFound) {
 			return nil, status.Error(codes.NotFound, "token not found")
 		}
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, status.Error(codes.Unauthenticated, "token expired")
+		}
 
 		return nil, status.Error(codes.Internal, "failed to refresh")
 	}

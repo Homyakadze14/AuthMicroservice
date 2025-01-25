@@ -275,6 +275,21 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*entiti
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
+	// Check refresh token
+	err = s.checkToken(refreshToken, s.jwtRef.Secret)
+	if err != nil {
+		// Delete token
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			err2 := s.tokRepo.Delete(ctx, refreshToken)
+			if err2 != nil {
+				err = errors.Join(err, fmt.Errorf("%s: %w", op, err2))
+			}
+		}
+
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
 	// Getting account
 	acc, err := s.getAccount(ctx, &entities.Account{ID: token.UserID})
 	if err != nil {
@@ -293,6 +308,15 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*entiti
 	return &entities.TokenPair{RefreshToken: refreshToken, AccessToken: accTok}, nil
 }
 
+func (s *AuthService) checkToken(token, secret string) error {
+	const op = "Auth.checkToken"
+	_, err := jwt.ParseToken(token, secret)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
 func (s *AuthService) Verify(ctx context.Context, accToken string) (bool, error) {
 	const op = "Auth.Verify"
 
@@ -301,7 +325,7 @@ func (s *AuthService) Verify(ctx context.Context, accToken string) (bool, error)
 	)
 
 	log.Info("trying to verify")
-	_, err := jwt.ParseToken(accToken, s.jwtAcc.Secret)
+	err := s.checkToken(accToken, s.jwtAcc.Secret)
 	if err != nil {
 		log.Error(err.Error())
 		return false, fmt.Errorf("%s: %w", op, err)
