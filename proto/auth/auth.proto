@@ -7,6 +7,7 @@ service Auth {
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc Logout(LogoutRequest) returns (LogoutResponse);
     rpc Verify(VerifyRequest) returns (VerifyResponse);
+    rpc Refresh(RefreshRequest) returns (RefreshResponse);
 }
 
 message LoginRequest {
@@ -44,4 +45,13 @@ message VerifyRequest {
 
 message VerifyResponse {
     bool success = 1;
+}
+
+message RefreshRequest {
+    string refresh_token=1;
+}
+
+message RefreshResponse {
+    string access_token=1;
+    string refresh_token=2;
 }

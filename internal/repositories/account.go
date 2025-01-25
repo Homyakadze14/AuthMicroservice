@@ -40,14 +40,7 @@ func (r *AccountRepository) Create(ctx context.Context, acc *entities.Account) (
 	return id, nil
 }
 
-func (r *AccountRepository) GetByUsername(ctx context.Context, username string) (*entities.Account, error) {
-	const op = "repositories.AccountRepository.GetByUsername"
-
-	row := r.Pool.QueryRow(
-		ctx,
-		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE username=$1",
-		username)
-
+func getUser(op string, row pgx.Row) (*entities.Account, error) {
 	acc := &entities.Account{}
 	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)
 	if err != nil {
@@ -60,6 +53,28 @@ func (r *AccountRepository) GetByUsername(ctx context.Context, username string) 
 	return acc, nil
 }
 
+func (r *AccountRepository) GetByUserID(ctx context.Context, uid string) (*entities.Account, error) {
+	const op = "repositories.AccountRepository.GetByUserID"
+
+	row := r.Pool.QueryRow(
+		ctx,
+		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE id=$1",
+		uid)
+
+	return getUser(op, row)
+}
+
+func (r *AccountRepository) GetByUsername(ctx context.Context, username string) (*entities.Account, error) {
+	const op = "repositories.AccountRepository.GetByUsername"
+
+	row := r.Pool.QueryRow(
+		ctx,
+		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE username=$1",
+		username)
+
+	return getUser(op, row)
+}
+
 func (r *AccountRepository) GetByEmail(ctx context.Context, email string) (*entities.Account, error) {
 	const op = "repositories.AccountRepository.GetByEmail"
 
@@ -68,14 +83,5 @@ func (r *AccountRepository) GetByEmail(ctx context.Context, email string) (*enti
 		"SELECT id, username, email, password, created_at, updated_at FROM account WHERE email=$1",
 		email)
 
-	acc := &entities.Account{}
-	err := row.Scan(&acc.ID, &acc.Username, &acc.Email, &acc.Password, &acc.CreatedAt, &acc.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, services.ErrAccountNotFound
-		}
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return acc, nil
+	return getUser(op, row)
 }

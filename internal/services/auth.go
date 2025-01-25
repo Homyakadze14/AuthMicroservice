@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/Homyakadze14/AuthMicroservice/internal/config"
@@ -26,6 +27,7 @@ type AccountRepo interface {
 	Create(ctx context.Context, account *entities.Account) (id int, err error)
 	GetByUsername(ctx context.Context, username string) (*entities.Account, error)
 	GetByEmail(ctx context.Context, email string) (*entities.Account, error)
+	GetByUserID(ctx context.Context, uid string) (*entities.Account, error)
 }
 
 type TokenRepo interface {
@@ -129,6 +131,11 @@ func (s *AuthService) getAccount(ctx context.Context, acc *entities.Account) (*e
 	if acc.Username == "" {
 		getFunc = s.accRepo.GetByEmail
 		getFuncArg = acc.Email
+	}
+
+	if acc.ID != 0 && acc.Username == "" && acc.Email == "" {
+		getFunc = s.accRepo.GetByUserID
+		getFuncArg = strconv.Itoa(acc.ID)
 	}
 
 	if getFuncArg == "" {
@@ -243,4 +250,38 @@ func (s *AuthService) Verify(ctx context.Context, link string) error {
 	log.Info("verification has been successfully completed")
 
 	return nil
+}
+
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error) {
+	const op = "Auth.Refresh"
+
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("refreshToken", refreshToken),
+	)
+
+	log.Info("trying to refresh token")
+	// Get refresh token
+	token, err := s.tokRepo.Get(ctx, refreshToken)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Getting account
+	acc, err := s.getAccount(ctx, &entities.Account{ID: token.UserID})
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Generate tokens
+	accTok, err := jwt.NewToken(acc, s.jwtAcc.Secret, s.jwtAcc.Duration)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("refreshing has been successfully completed")
+
+	return &entities.TokenPair{RefreshToken: refreshToken, AccessToken: accTok}, nil
 }

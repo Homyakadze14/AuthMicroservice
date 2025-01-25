@@ -403,3 +403,65 @@ func TestVerifyUpdateErr(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestRefresh(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := "testtoken"
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
+	testData.tokRepo = tokenRepo
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByUserID", testData.ctx, "1").Return(&entities.Account{ID: 1, Username: "test"}, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
+	pair, err := service.Refresh(testData.ctx, refreshToken)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, pair)
+}
+
+func TestRefreshTokErr(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := "testtoken"
+	err := errors.New("test")
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken).Return(nil, err).Once()
+	testData.tokRepo = tokenRepo
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByUserID", testData.ctx, "1").Return(&entities.Account{ID: 1, Username: "test"}, nil).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
+	pair, err := service.Refresh(testData.ctx, refreshToken)
+
+	assert.Error(t, err)
+	assert.Empty(t, pair)
+}
+
+func TestRefreshAccErr(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	refreshToken := "testtoken"
+	err := errors.New("test")
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("Get", testData.ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
+	testData.tokRepo = tokenRepo
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("GetByUserID", testData.ctx, "1").Return(nil, err).Once()
+	testData.accRepo = accRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer)
+	pair, err := service.Refresh(testData.ctx, refreshToken)
+
+	assert.Error(t, err)
+	assert.Empty(t, pair)
+}

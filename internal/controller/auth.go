@@ -22,6 +22,7 @@ type Auth interface {
 	Register(ctx context.Context, acc *entities.Account) error
 	Logout(ctx context.Context, tok *entities.LogoutRequest) error
 	Verify(ctx context.Context, link string) error
+	Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error)
 }
 
 func Register(gRPCServer *grpc.Server, auth Auth) {
@@ -138,4 +139,30 @@ func (s *serverAPI) Verify(
 	}
 
 	return &authv1.VerifyResponse{Success: true}, nil
+}
+
+func (s *serverAPI) Refresh(
+	ctx context.Context,
+	in *authv1.RefreshRequest,
+) (*authv1.RefreshResponse, error) {
+	if in.RefreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "refresh token is required")
+	}
+
+	tokenPair, err := s.auth.Refresh(ctx, in.RefreshToken)
+	if err != nil {
+		if errors.Is(err, services.ErrAccountNotFound) {
+			return nil, status.Error(codes.NotFound, "account not found")
+		}
+		if errors.Is(err, services.ErrTokenNotFound) {
+			return nil, status.Error(codes.NotFound, "token not found")
+		}
+
+		return nil, status.Error(codes.Internal, "failed to verify")
+	}
+
+	return &authv1.RefreshResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+	}, nil
 }

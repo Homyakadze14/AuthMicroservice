@@ -15,5 +15,5 @@ type Account struct {
 }
 
 func (a Account) String() string {
-	return fmt.Sprintf("Username: %v; Email: %v", a.Username, a.Email)
+	return fmt.Sprintf("ID: %v; Username: %v; Email: %v", a.ID, a.Username, a.Email)
 }
