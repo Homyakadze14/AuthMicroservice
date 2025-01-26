@@ -53,22 +53,37 @@ func (r *PasswordLinkRepository) GetByEmail(ctx context.Context, email string) (
 	return dblink, nil
 }
 
-func (r *PasswordLinkRepository) Exists(ctx context.Context, link string) (bool, error) {
-	const op = "repositories.PasswordLinkRepository.Get"
+func (r *PasswordLinkRepository) GetByLink(ctx context.Context, link string) (*entities.PwdLink, error) {
+	const op = "repositories.PasswordLinkRepository.GetByLink"
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT id FROM password_link WHERE link=$1",
+		"SELECT id, email, link FROM password_link WHERE link=$1",
 		link)
 
-	var id int
-	err := row.Scan(&id)
+	dblink := &entities.PwdLink{}
+	err := row.Scan(&dblink.ID, &dblink.Email, &dblink.Link)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, services.ErrLinkNotFound
+			return nil, services.ErrLinkNotFound
 		}
-		return false, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return true, nil
+	return dblink, nil
+}
+
+func (r *PasswordLinkRepository) Delete(ctx context.Context, link string) error {
+	const op = "repositories.PasswordLinkRepository.Delete"
+
+	_, err := r.Pool.Exec(
+		ctx,
+		"DELETE FROM password_link WHERE link=$1",
+		link)
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
 }

@@ -26,6 +26,7 @@ const (
 	Auth_Refresh_FullMethodName          = "/Auth/Refresh"
 	Auth_Verify_FullMethodName           = "/Auth/Verify"
 	Auth_SendPasswordLink_FullMethodName = "/Auth/SendPasswordLink"
+	Auth_ChangePassword_FullMethodName   = "/Auth/ChangePassword"
 )
 
 // AuthClient is the client API for Auth service.
@@ -39,6 +40,7 @@ type AuthClient interface {
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
 	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
 	SendPasswordLink(ctx context.Context, in *SendPasswordLinkRequest, opts ...grpc.CallOption) (*SendPasswordLinkResponse, error)
+	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*ChangePasswordResponse, error)
 }
 
 type authClient struct {
@@ -119,6 +121,16 @@ func (c *authClient) SendPasswordLink(ctx context.Context, in *SendPasswordLinkR
 	return out, nil
 }
 
+func (c *authClient) ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*ChangePasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangePasswordResponse)
+	err := c.cc.Invoke(ctx, Auth_ChangePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServer is the server API for Auth service.
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility.
@@ -130,6 +142,7 @@ type AuthServer interface {
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
 	Verify(context.Context, *VerifyRequest) (*VerifyResponse, error)
 	SendPasswordLink(context.Context, *SendPasswordLinkRequest) (*SendPasswordLinkResponse, error)
+	ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -160,6 +173,9 @@ func (UnimplementedAuthServer) Verify(context.Context, *VerifyRequest) (*VerifyR
 }
 func (UnimplementedAuthServer) SendPasswordLink(context.Context, *SendPasswordLinkRequest) (*SendPasswordLinkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendPasswordLink not implemented")
+}
+func (UnimplementedAuthServer) ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChangePassword not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
 func (UnimplementedAuthServer) testEmbeddedByValue()              {}
@@ -308,6 +324,24 @@ func _Auth_SendPasswordLink_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_ChangePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).ChangePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auth_ChangePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).ChangePassword(ctx, req.(*ChangePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auth_ServiceDesc is the grpc.ServiceDesc for Auth service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -342,6 +376,10 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendPasswordLink",
 			Handler:    _Auth_SendPasswordLink_Handler,
+		},
+		{
+			MethodName: "ChangePassword",
+			Handler:    _Auth_ChangePassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

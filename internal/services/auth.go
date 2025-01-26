@@ -29,6 +29,7 @@ type AccountRepo interface {
 	GetByUsername(ctx context.Context, username string) (*entities.Account, error)
 	GetByEmail(ctx context.Context, email string) (*entities.Account, error)
 	GetByUserID(ctx context.Context, uid string) (*entities.Account, error)
+	UpdatePwdByEmail(ctx context.Context, email string, password string) error
 }
 
 type TokenRepo interface {
@@ -47,7 +48,8 @@ type LinkRepo interface {
 type PwdLinkRepo interface {
 	Create(ctx context.Context, link *entities.PwdLink) error
 	GetByEmail(ctx context.Context, email string) (*entities.PwdLink, error)
-	Exists(ctx context.Context, link string) (bool, error)
+	GetByLink(ctx context.Context, link string) (*entities.PwdLink, error)
+	Delete(ctx context.Context, link string) error
 }
 
 type Mailer interface {
@@ -394,6 +396,44 @@ func (s *AuthService) SendPwdLink(ctx context.Context, email string) (bool, erro
 		}
 	}()
 	log.Info("password link has been sent")
+
+	return true, nil
+}
+
+func (s *AuthService) ChangePwd(ctx context.Context, link *entities.ChPwdLink) (bool, error) {
+	const op = "Auth.ChangePwd"
+
+	log := s.log.With(
+		slog.String("op", op),
+	)
+
+	log.Info("trying to change password")
+	dbLink, err := s.pwdLinkRepo.GetByLink(ctx, link.Link)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Hash password
+	passHash, err := bcrypt.GenerateFromPassword([]byte(link.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Error("failed to generate password hash")
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+	link.Password = string(passHash)
+
+	err = s.accRepo.UpdatePwdByEmail(ctx, dbLink.Email, link.Password)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.pwdLinkRepo.Delete(ctx, link.Link)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("password has been changed")
 
 	return true, nil
 }

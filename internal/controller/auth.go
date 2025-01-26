@@ -26,6 +26,7 @@ type Auth interface {
 	Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error)
 	Verify(ctx context.Context, accToken string) (bool, error)
 	SendPwdLink(ctx context.Context, email string) (bool, error)
+	ChangePwd(ctx context.Context, link *entities.ChPwdLink) (bool, error)
 }
 
 func Register(gRPCServer *grpc.Server, auth Auth) {
@@ -213,4 +214,28 @@ func (s *serverAPI) SendPasswordLink(
 	}
 
 	return &authv1.SendPasswordLinkResponse{Success: success}, nil
+}
+
+func (s *serverAPI) ChangePassword(
+	ctx context.Context,
+	in *authv1.ChangePasswordRequest,
+) (*authv1.ChangePasswordResponse, error) {
+	if in.Link == "" || in.Password == "" {
+		return nil, status.Error(codes.InvalidArgument, "link and password is required")
+	}
+
+	link := &entities.ChPwdLink{
+		Link:     in.Link,
+		Password: in.Password,
+	}
+
+	success, err := s.auth.ChangePwd(ctx, link)
+	if err != nil {
+		if errors.Is(err, services.ErrLinkNotFound) {
+			return nil, status.Error(codes.NotFound, "link not found")
+		}
+		return nil, status.Error(codes.Internal, "failed to change password")
+	}
+
+	return &authv1.ChangePasswordResponse{Success: success}, nil
 }

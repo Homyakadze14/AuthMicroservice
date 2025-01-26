@@ -5,3 +5,9 @@ type PwdLink struct {
 	Email string
 	Link  string
 }
+
+type ChPwdLink struct {
+	ID       int
+	Link     string
+	Password string
+}

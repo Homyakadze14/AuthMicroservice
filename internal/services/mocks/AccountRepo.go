@@ -132,6 +132,24 @@ func (_m *AccountRepo) GetByUsername(ctx context.Context, username string) (*ent
 	return r0, r1
 }
 
+// UpdatePwdByEmail provides a mock function with given fields: ctx, email, password
+func (_m *AccountRepo) UpdatePwdByEmail(ctx context.Context, email string, password string) error {
+	ret := _m.Called(ctx, email, password)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePwdByEmail")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, email, password)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewAccountRepo creates a new instance of AccountRepo. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewAccountRepo(t interface {

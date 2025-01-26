@@ -85,3 +85,18 @@ func (r *AccountRepository) GetByEmail(ctx context.Context, email string) (*enti
 
 	return getUser(op, row)
 }
+
+func (r *AccountRepository) UpdatePwdByEmail(ctx context.Context, email string, password string) error {
+	const op = "repositories.AccountRepository.UpdateByEmail"
+
+	_, err := r.Pool.Exec(
+		ctx,
+		"UPDATE account SET password=$1 WHERE email=$2",
+		password, email)
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

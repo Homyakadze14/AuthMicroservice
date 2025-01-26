@@ -10,6 +10,7 @@ service Auth {
     rpc Refresh(RefreshRequest) returns (RefreshResponse);
     rpc Verify(VerifyRequest) returns (VerifyResponse);
     rpc SendPasswordLink(SendPasswordLinkRequest) returns (SendPasswordLinkResponse);
+    rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
 }
 
 message LoginRequest {
@@ -71,5 +72,14 @@ message SendPasswordLinkRequest {
 }
 
 message SendPasswordLinkResponse {
+    bool success = 1;
+}
+
+message ChangePasswordRequest {
+    string link=1;
+    string password=2;
+}
+
+message ChangePasswordResponse {
     bool success = 1;
 }

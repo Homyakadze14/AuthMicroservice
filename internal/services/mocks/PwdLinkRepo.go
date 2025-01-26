@@ -32,32 +32,22 @@ func (_m *PwdLinkRepo) Create(ctx context.Context, link *entities.PwdLink) error
 	return r0
 }
 
-// Exists provides a mock function with given fields: ctx, link
-func (_m *PwdLinkRepo) Exists(ctx context.Context, link string) (bool, error) {
+// Delete provides a mock function with given fields: ctx, link
+func (_m *PwdLinkRepo) Delete(ctx context.Context, link string) error {
 	ret := _m.Called(ctx, link)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Exists")
+		panic("no return value specified for Delete")
 	}
 
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
-		return rf(ctx, link)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
 		r0 = rf(ctx, link)
 	} else {
-		r0 = ret.Get(0).(bool)
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, link)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // GetByEmail provides a mock function with given fields: ctx, email
@@ -83,6 +73,36 @@ func (_m *PwdLinkRepo) GetByEmail(ctx context.Context, email string) (*entities.
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetByLink provides a mock function with given fields: ctx, link
+func (_m *PwdLinkRepo) GetByLink(ctx context.Context, link string) (*entities.PwdLink, error) {
+	ret := _m.Called(ctx, link)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByLink")
+	}
+
+	var r0 *entities.PwdLink
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*entities.PwdLink, error)); ok {
+		return rf(ctx, link)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *entities.PwdLink); ok {
+		r0 = rf(ctx, link)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*entities.PwdLink)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, link)
 	} else {
 		r1 = ret.Error(1)
 	}
