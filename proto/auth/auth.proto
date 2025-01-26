@@ -9,6 +9,7 @@ service Auth {
     rpc ActivateAccount(ActivateAccountRequest) returns (ActivateAccountResponse);
     rpc Refresh(RefreshRequest) returns (RefreshResponse);
     rpc Verify(VerifyRequest) returns (VerifyResponse);
+    rpc SendPasswordLink(SendPasswordLinkRequest) returns (SendPasswordLinkResponse);
 }
 
 message LoginRequest {
@@ -63,4 +64,12 @@ message VerifyRequest {
 
 message VerifyResponse {
     bool verified=1;
+}
+
+message SendPasswordLinkRequest {
+    string email=1;
+}
+
+message SendPasswordLinkResponse {
+    bool success = 1;
 }

@@ -24,7 +24,7 @@ func (r *LinkRepository) Create(ctx context.Context, link *entities.Link) error 
 
 	_, err := r.Pool.Exec(
 		ctx,
-		"INSERT INTO link(user_id, link) VALUES ($1, $2)",
+		"INSERT INTO activation_link(user_id, link) VALUES ($1, $2)",
 		link.UserID, link.Link)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -38,7 +38,7 @@ func (r *LinkRepository) Get(ctx context.Context, link string) (*entities.Link, 
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT id, user_id, link, is_activated FROM link WHERE link=$1",
+		"SELECT id, user_id, link, is_activated FROM activation_link WHERE link=$1",
 		link)
 
 	dblink := &entities.Link{}
@@ -58,7 +58,7 @@ func (r *LinkRepository) IsActivated(ctx context.Context, uid int) (bool, error)
 
 	row := r.Pool.QueryRow(
 		ctx,
-		"SELECT is_activated FROM link WHERE user_id=$1",
+		"SELECT is_activated FROM activation_link WHERE user_id=$1",
 		uid)
 
 	var isActivated bool
@@ -78,7 +78,7 @@ func (r *LinkRepository) Update(ctx context.Context, id int, link *entities.Link
 
 	_, err := r.Pool.Exec(
 		ctx,
-		"UPDATE link SET user_id=$1, link=$2, is_activated=$3 WHERE id=$4",
+		"UPDATE activation_link SET user_id=$1, link=$2, is_activated=$3 WHERE id=$4",
 		link.UserID, link.Link, link.IsActivated, id)
 
 	if err != nil {

@@ -34,12 +34,13 @@ func Run(
 	accRepo := repositories.NewAccountRepository(pg)
 	tokenRepo := repositories.NewTokenRepository(pg)
 	linkRepo := repositories.NewLinkRepository(pg)
+	pwdLinkRepo := repositories.NewPasswordLinkRepository(pg)
 
 	// Mailer
-	mailer := actLinkMailer.New(cfg.Mailer.ActivationUrl, mailer.New(&cfg.Mailer))
+	mailer := actLinkMailer.New(cfg.BaseLinks, mailer.New(&cfg.Mailer))
 
 	// Services
-	auth := services.NewAuthService(log, accRepo, tokenRepo, linkRepo, &cfg.JWTAccess, &cfg.JWTRefresh, mailer)
+	auth := services.NewAuthService(log, accRepo, tokenRepo, linkRepo, &cfg.JWTAccess, &cfg.JWTRefresh, mailer, pwdLinkRepo)
 
 	// GRPC
 	gRPCServer := grpcapp.New(log, auth, cfg.GRPC.Port)

@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auth_Login_FullMethodName           = "/Auth/Login"
-	Auth_Register_FullMethodName        = "/Auth/Register"
-	Auth_Logout_FullMethodName          = "/Auth/Logout"
-	Auth_ActivateAccount_FullMethodName = "/Auth/ActivateAccount"
-	Auth_Refresh_FullMethodName         = "/Auth/Refresh"
-	Auth_Verify_FullMethodName          = "/Auth/Verify"
+	Auth_Login_FullMethodName            = "/Auth/Login"
+	Auth_Register_FullMethodName         = "/Auth/Register"
+	Auth_Logout_FullMethodName           = "/Auth/Logout"
+	Auth_ActivateAccount_FullMethodName  = "/Auth/ActivateAccount"
+	Auth_Refresh_FullMethodName          = "/Auth/Refresh"
+	Auth_Verify_FullMethodName           = "/Auth/Verify"
+	Auth_SendPasswordLink_FullMethodName = "/Auth/SendPasswordLink"
 )
 
 // AuthClient is the client API for Auth service.
@@ -37,6 +38,7 @@ type AuthClient interface {
 	ActivateAccount(ctx context.Context, in *ActivateAccountRequest, opts ...grpc.CallOption) (*ActivateAccountResponse, error)
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
 	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
+	SendPasswordLink(ctx context.Context, in *SendPasswordLinkRequest, opts ...grpc.CallOption) (*SendPasswordLinkResponse, error)
 }
 
 type authClient struct {
@@ -107,6 +109,16 @@ func (c *authClient) Verify(ctx context.Context, in *VerifyRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *authClient) SendPasswordLink(ctx context.Context, in *SendPasswordLinkRequest, opts ...grpc.CallOption) (*SendPasswordLinkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendPasswordLinkResponse)
+	err := c.cc.Invoke(ctx, Auth_SendPasswordLink_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServer is the server API for Auth service.
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type AuthServer interface {
 	ActivateAccount(context.Context, *ActivateAccountRequest) (*ActivateAccountResponse, error)
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
 	Verify(context.Context, *VerifyRequest) (*VerifyResponse, error)
+	SendPasswordLink(context.Context, *SendPasswordLinkRequest) (*SendPasswordLinkResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedAuthServer) Refresh(context.Context, *RefreshRequest) (*Refre
 }
 func (UnimplementedAuthServer) Verify(context.Context, *VerifyRequest) (*VerifyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Verify not implemented")
+}
+func (UnimplementedAuthServer) SendPasswordLink(context.Context, *SendPasswordLinkRequest) (*SendPasswordLinkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendPasswordLink not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
 func (UnimplementedAuthServer) testEmbeddedByValue()              {}
@@ -274,6 +290,24 @@ func _Auth_Verify_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_SendPasswordLink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendPasswordLinkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).SendPasswordLink(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auth_SendPasswordLink_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).SendPasswordLink(ctx, req.(*SendPasswordLinkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auth_ServiceDesc is the grpc.ServiceDesc for Auth service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Verify",
 			Handler:    _Auth_Verify_Handler,
+		},
+		{
+			MethodName: "SendPasswordLink",
+			Handler:    _Auth_SendPasswordLink_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

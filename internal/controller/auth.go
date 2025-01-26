@@ -25,6 +25,7 @@ type Auth interface {
 	ActivateAccount(ctx context.Context, link string) error
 	Refresh(ctx context.Context, refreshToken string) (*entities.TokenPair, error)
 	Verify(ctx context.Context, accToken string) (bool, error)
+	SendPwdLink(ctx context.Context, email string) (bool, error)
 }
 
 func Register(gRPCServer *grpc.Server, auth Auth) {
@@ -193,4 +194,23 @@ func (s *serverAPI) Verify(
 	}
 
 	return &authv1.VerifyResponse{Verified: verified}, nil
+}
+
+func (s *serverAPI) SendPasswordLink(
+	ctx context.Context,
+	in *authv1.SendPasswordLinkRequest,
+) (*authv1.SendPasswordLinkResponse, error) {
+	if in.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+
+	success, err := s.auth.SendPwdLink(ctx, in.Email)
+	if err != nil {
+		if errors.Is(err, services.ErrAccountNotFound) {
+			return nil, status.Error(codes.NotFound, "account not found")
+		}
+		return nil, status.Error(codes.Internal, "failed to send password link")
+	}
+
+	return &authv1.SendPasswordLinkResponse{Success: success}, nil
 }

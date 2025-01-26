@@ -44,18 +44,26 @@ type LinkRepo interface {
 	IsActivated(ctx context.Context, uid int) (bool, error)
 }
 
+type PwdLinkRepo interface {
+	Create(ctx context.Context, link *entities.PwdLink) error
+	GetByEmail(ctx context.Context, email string) (*entities.PwdLink, error)
+	Exists(ctx context.Context, link string) (bool, error)
+}
+
 type Mailer interface {
 	SendActivationMail(email, link string) error
+	SendPwdMail(email, link string) error
 }
 
 type AuthService struct {
-	log      *slog.Logger
-	accRepo  AccountRepo
-	tokRepo  TokenRepo
-	linkRepo LinkRepo
-	jwtAcc   *config.JWTAccessConfig
-	jwtRef   *config.JWTRefreshConfig
-	mailer   Mailer
+	log         *slog.Logger
+	accRepo     AccountRepo
+	tokRepo     TokenRepo
+	linkRepo    LinkRepo
+	jwtAcc      *config.JWTAccessConfig
+	jwtRef      *config.JWTRefreshConfig
+	mailer      Mailer
+	pwdLinkRepo PwdLinkRepo
 }
 
 func NewAuthService(
@@ -66,15 +74,17 @@ func NewAuthService(
 	jwtAcc *config.JWTAccessConfig,
 	jwtRef *config.JWTRefreshConfig,
 	mailer Mailer,
+	pwdLinkRepo PwdLinkRepo,
 ) *AuthService {
 	return &AuthService{
-		log:      log,
-		accRepo:  accRepo,
-		tokRepo:  tokRepo,
-		linkRepo: linkRepo,
-		jwtAcc:   jwtAcc,
-		jwtRef:   jwtRef,
-		mailer:   mailer,
+		log:         log,
+		accRepo:     accRepo,
+		tokRepo:     tokRepo,
+		linkRepo:    linkRepo,
+		jwtAcc:      jwtAcc,
+		jwtRef:      jwtRef,
+		mailer:      mailer,
+		pwdLinkRepo: pwdLinkRepo,
 	}
 }
 
@@ -329,6 +339,61 @@ func (s *AuthService) Verify(ctx context.Context, accToken string) (bool, error)
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("verification has been successfully completed")
+
+	return true, nil
+}
+
+func (s *AuthService) createPwdLink(ctx context.Context, email string) (*entities.PwdLink, error) {
+	link := &entities.PwdLink{
+		Email: email,
+		Link:  uuid.NewString(),
+	}
+
+	err := s.pwdLinkRepo.Create(ctx, link)
+	if err != nil {
+		return nil, err
+	}
+
+	return link, nil
+}
+
+func (s *AuthService) SendPwdLink(ctx context.Context, email string) (bool, error) {
+	const op = "Auth.SendPwdLink"
+
+	log := s.log.With(
+		slog.String("op", op),
+	)
+
+	log.Info("trying to send password link")
+	_, err := s.accRepo.GetByEmail(ctx, email)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	link, err := s.pwdLinkRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, ErrLinkNotFound) {
+			// Create pwd link
+			link, err = s.createPwdLink(ctx, email)
+			if err != nil {
+				log.Error(err.Error())
+				return false, fmt.Errorf("%s: %w", op, err)
+			}
+		} else {
+			log.Error(err.Error())
+			return false, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	// Send pwd link
+	go func() {
+		err := s.mailer.SendPwdMail(link.Email, link.Link)
+		if err != nil {
+			log.Error(fmt.Errorf("%s: %w", op, err).Error())
+		}
+	}()
+	log.Info("password link has been sent")
 
 	return true, nil
 }
