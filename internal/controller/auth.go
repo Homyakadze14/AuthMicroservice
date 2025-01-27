@@ -52,12 +52,8 @@ func (s *serverAPI) Login(
 	}
 	tokenPair, err := s.auth.Login(ctx, data)
 	if err != nil {
-		if errors.Is(err, services.ErrBadCredentials) {
+		if errors.Is(err, services.ErrBadCredentials) || errors.Is(err, services.ErrAccountNotFound) {
 			return nil, status.Error(codes.InvalidArgument, "invalid email, username or password")
-		}
-
-		if errors.Is(err, services.ErrAccountNotFound) {
-			return nil, status.Error(codes.NotFound, "account not found")
 		}
 
 		if errors.Is(err, services.ErrNotActivated) {
