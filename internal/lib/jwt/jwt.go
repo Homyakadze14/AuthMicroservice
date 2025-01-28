@@ -10,6 +10,7 @@ import (
 
 var (
 	ErrTokenExpired = errors.New("token expired")
+	ErrBadToken     = errors.New("bad token")
 )
 
 func NewToken(acc *entities.Account, secret string, duration time.Duration) (string, error) {
@@ -37,7 +38,7 @@ func ParseToken(token, secret string) (*jwt.Token, error) {
 		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
 			return nil, ErrTokenExpired
 		}
-		return nil, err
+		return nil, ErrBadToken
 	}
 
 	return jwtToken, nil

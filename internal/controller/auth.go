@@ -187,6 +187,9 @@ func (s *serverAPI) Verify(
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, status.Error(codes.Unauthenticated, "token expired")
 		}
+		if errors.Is(err, jwt.ErrBadToken) {
+			return nil, status.Error(codes.InvalidArgument, "bad token")
+		}
 		return nil, status.Error(codes.Internal, "failed to verify")
 	}
 
