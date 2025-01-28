@@ -35,7 +35,7 @@ type JWTRefreshConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL     string `yaml:"url" env-required:"true"`
+	URL     string `yaml:"url" env:"PG_URL" env-required:"true"`
 	PoolMax int    `yaml:"pool_max" env-required:"true"`
 }
 
