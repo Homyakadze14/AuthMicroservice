@@ -6,6 +6,7 @@ import (
 
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var (
@@ -17,6 +18,7 @@ func NewToken(acc *entities.Account, secret string, duration time.Duration) (str
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewString()
 	claims["uid"] = acc.ID
 	claims["username"] = acc.Username
 	claims["exp"] = time.Now().Add(duration).Unix()
