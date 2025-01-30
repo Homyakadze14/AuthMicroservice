@@ -67,3 +67,18 @@ func (r *TokenRepository) Delete(ctx context.Context, refreshToken string) error
 
 	return nil
 }
+
+func (r *TokenRepository) DeleteAllByEmail(ctx context.Context, email string) error {
+	const op = "repositories.TokenRepository.DeleteAllByUserID"
+
+	_, err := r.Pool.Exec(
+		ctx,
+		"DELETE FROM token WHERE user_id IN (SELECT user_id FROM account WHERE email=$1)",
+		email)
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

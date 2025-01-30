@@ -36,6 +36,7 @@ type TokenRepo interface {
 	Create(ctx context.Context, token *entities.Token) error
 	Get(ctx context.Context, refreshToken string) (*entities.Token, error)
 	Delete(ctx context.Context, refreshToken string) error
+	DeleteAllByEmail(ctx context.Context, email string) error
 }
 
 type LinkRepo interface {
@@ -423,6 +424,12 @@ func (s *AuthService) ChangePwd(ctx context.Context, link *entities.ChPwdLink) (
 	link.Password = string(passHash)
 
 	err = s.accRepo.UpdatePwdByEmail(ctx, dbLink.Email, link.Password)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.tokRepo.DeleteAllByEmail(ctx, dbLink.Email)
 	if err != nil {
 		log.Error(err.Error())
 		return false, fmt.Errorf("%s: %w", op, err)

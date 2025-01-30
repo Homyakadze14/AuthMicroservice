@@ -588,6 +588,10 @@ func TestChangePassword(t *testing.T) {
 	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
 	testData.pwdLinkRepo = pwdLinkRepo
 
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
+	testData.tokRepo = tokenRepo
+
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
 	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
@@ -610,6 +614,10 @@ func TestChangePasswordGetByLinkErr(t *testing.T) {
 	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(nil, tErr).Once()
 	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
 	testData.pwdLinkRepo = pwdLinkRepo
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
+	testData.tokRepo = tokenRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
 	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
@@ -634,6 +642,10 @@ func TestChangePasswordUpdatePwdByEmailErr(t *testing.T) {
 	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
 	testData.pwdLinkRepo = pwdLinkRepo
 
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
+	testData.tokRepo = tokenRepo
+
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
 	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
@@ -656,6 +668,37 @@ func TestChangePasswordDeleteErr(t *testing.T) {
 	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
 	pwdLinkRepo.On("Delete", testData.ctx, link).Return(tErr).Once()
 	testData.pwdLinkRepo = pwdLinkRepo
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
+	testData.tokRepo = tokenRepo
+
+	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
+	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+
+	assert.ErrorIs(t, err, tErr)
+	assert.Empty(t, success)
+}
+
+func TestChangePasswordDeleteAllAccsByEmail(t *testing.T) {
+	testData := NewDefaultTestData()
+
+	link := "test"
+	email := "test"
+	tErr := errors.New("test")
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
+	testData.accRepo = accRepo
+
+	pwdLinkRepo := &mocks.PwdLinkRepo{}
+	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
+	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
+	testData.pwdLinkRepo = pwdLinkRepo
+
+	tokenRepo := &mocks.TokenRepo{}
+	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(tErr).Once()
+	testData.tokRepo = tokenRepo
 
 	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
 	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})

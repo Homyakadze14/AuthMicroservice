@@ -50,6 +50,24 @@ func (_m *TokenRepo) Delete(ctx context.Context, refreshToken string) error {
 	return r0
 }
 
+// DeleteAllByEmail provides a mock function with given fields: ctx, email
+func (_m *TokenRepo) DeleteAllByEmail(ctx context.Context, email string) error {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAllByEmail")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Get provides a mock function with given fields: ctx, refreshToken
 func (_m *TokenRepo) Get(ctx context.Context, refreshToken string) (*entities.Token, error) {
 	ret := _m.Called(ctx, refreshToken)
