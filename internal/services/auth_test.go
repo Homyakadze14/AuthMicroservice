@@ -13,13 +13,13 @@ import (
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
 	"github.com/Homyakadze14/AuthMicroservice/internal/lib/jwt"
 	"github.com/Homyakadze14/AuthMicroservice/internal/services/mocks"
+	userv1 "github.com/Homyakadze14/AuthMicroservice/proto/gen/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type DefaultTestData struct {
-	ctx         context.Context
+type cfg struct {
 	log         *slog.Logger
 	accRepo     *mocks.AccountRepo
 	tokRepo     *mocks.TokenRepo
@@ -28,19 +28,35 @@ type DefaultTestData struct {
 	jwtRef      *config.JWTRefreshConfig
 	mailer      *mocks.Mailer
 	pwdLinkRepo *mocks.PwdLinkRepo
+	userService *mocks.UserServiceI
 }
 
-func NewDefaultTestData() *DefaultTestData {
+func NewService(cfg cfg) *AuthService {
 	ctx := context.Background()
 
-	accRepo := &mocks.AccountRepo{}
-	accRepo.On("Create", ctx, mock.AnythingOfType("*entities.Account")).Return(0, nil).Once()
+	accRepo := cfg.accRepo
+	if accRepo == nil {
+		accRepo = &mocks.AccountRepo{}
+		accRepo.On("Create", ctx, mock.AnythingOfType("*entities.Account")).Return(0, nil).Once()
+	}
 
-	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Create", ctx, mock.AnythingOfType("*entities.Token")).Return(nil).Once()
+	tokenRepo := cfg.tokRepo
+	if tokenRepo == nil {
+		tokenRepo = &mocks.TokenRepo{}
+		tokenRepo.On("Create", ctx, mock.AnythingOfType("*entities.Token")).Return(nil).Once()
+	}
 
-	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("Create", ctx, mock.AnythingOfType("*entities.Link")).Return(nil).Once()
+	linkRepo := cfg.linkRepo
+	if linkRepo == nil {
+		linkRepo = &mocks.LinkRepo{}
+		linkRepo.On("Create", ctx, mock.AnythingOfType("*entities.Link")).Return(nil).Once()
+	}
+
+	pwdLinkRepo := cfg.pwdLinkRepo
+	if pwdLinkRepo == nil {
+		pwdLinkRepo = &mocks.PwdLinkRepo{}
+		pwdLinkRepo.On("Create", ctx, mock.AnythingOfType("*entities.PwdLink")).Return(nil).Once()
+	}
 
 	jwtAcc := &config.JWTAccessConfig{
 		Secret:   "test_acc",
@@ -54,78 +70,120 @@ func NewDefaultTestData() *DefaultTestData {
 
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	mailer := &mocks.Mailer{}
-
-	return &DefaultTestData{
-		log:      log,
-		ctx:      ctx,
-		accRepo:  accRepo,
-		tokRepo:  tokenRepo,
-		linkRepo: linkRepo,
-		jwtAcc:   jwtAcc,
-		jwtRef:   jwtRef,
-		mailer:   mailer,
+	mailer := cfg.mailer
+	if mailer == nil {
+		mailer = &mocks.Mailer{}
 	}
+	userService := cfg.userService
+	if userService == nil {
+		userService = &mocks.UserServiceI{}
+	}
+
+	return NewAuthService(log, accRepo, tokenRepo, linkRepo, jwtAcc, jwtRef, mailer, pwdLinkRepo, userService)
 }
 
 func TestRegister(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	oldPass := "Test"
 	testAcc := &entities.Account{
+		ID:       1,
 		Username: "Test",
 		Password: oldPass,
 		Email:    "Test",
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("Create", testData.ctx, testAcc).Return(0, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("Create", ctx, testAcc).Return(testAcc.ID, nil).Once()
 
 	mailer := &mocks.Mailer{}
 	mailer.On("SendActivationMail", testAcc.Email, mock.Anything).Return(nil).Once()
-	testData.mailer = mailer
+
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: int64(testAcc.ID)}).Return(&userv1.CreateDefaultResponse{}, nil).Once()
+
+	sCfg := cfg{
+		accRepo:     accRepo,
+		mailer:      mailer,
+		userService: userService,
+	}
 
 	t.Log("Check registration")
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err := service.Register(testData.ctx, testAcc)
+	service := NewService(sCfg)
+	err := service.Register(ctx, testAcc)
 
 	assert.NotEqual(t, testAcc.Password, oldPass)
 	assert.Nil(t, err)
 }
 
 func TestRegisterAccountError(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	err := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.Account")).Return(-1, err).Once()
-	testData.accRepo = accRepo
+	accRepo.On("Create", ctx, mock.AnythingOfType("*entities.Account")).Return(-1, err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.Register(testData.ctx, &entities.Account{})
+	sCfg := cfg{
+		accRepo: accRepo,
+	}
+
+	service := NewService(sCfg)
+	err = service.Register(ctx, &entities.Account{})
 
 	assert.Error(t, err)
 }
 
 func TestRegisterLinkError(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	err := errors.New("test")
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.Link")).Return(err).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("Create", ctx, mock.AnythingOfType("*entities.Link")).Return(err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.Register(testData.ctx, &entities.Account{})
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: 0}).Return(&userv1.CreateDefaultResponse{}, nil).Once()
+
+	sCfg := cfg{
+		linkRepo:    linkRepo,
+		userService: userService,
+	}
+
+	service := NewService(sCfg)
+	err = service.Register(ctx, &entities.Account{})
+
+	assert.Error(t, err)
+}
+
+func TestRegisterCreateUser(t *testing.T) {
+	ctx := context.Background()
+
+	err := errors.New("test")
+
+	accRepo := &mocks.AccountRepo{}
+	accRepo.On("Create", ctx, mock.AnythingOfType("*entities.Account")).Return(0, nil).Once()
+	accRepo.On("Delete", ctx, mock.AnythingOfType("int")).Return(nil).Once()
+
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: 0}).Return(nil, err).Once()
+
+	sCfg := cfg{
+		accRepo:     accRepo,
+		userService: userService,
+	}
+
+	service := NewService(sCfg)
+	err = service.Register(ctx, &entities.Account{})
 
 	assert.Error(t, err)
 }
 
 func TestLoginByUsername(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -142,22 +200,25 @@ func TestLoginByUsername(t *testing.T) {
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUsername", testData.ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByUsername", ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("IsActivated", testData.ctx, testAccount.ID).Return(true, nil).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("IsActivated", ctx, testAccount.ID).Return(true, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{
+		accRepo:  accRepo,
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, pair)
 }
 
 func TestLoginByEmail(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -174,15 +235,18 @@ func TestLoginByEmail(t *testing.T) {
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("IsActivated", testData.ctx, testAccount.ID).Return(true, nil).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("IsActivated", ctx, testAccount.ID).Return(true, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{
+		accRepo:  accRepo,
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, pair)
@@ -190,7 +254,7 @@ func TestLoginByEmail(t *testing.T) {
 
 func TestTokenExpirationAndVerification(t *testing.T) {
 	t.Parallel()
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -207,15 +271,18 @@ func TestTokenExpirationAndVerification(t *testing.T) {
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUsername", testData.ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByUsername", ctx, testAccount.Username).Return(bdTestAccount, nil).Once()
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("IsActivated", testData.ctx, testAccount.ID).Return(true, nil).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("IsActivated", ctx, testAccount.ID).Return(true, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{
+		accRepo:  accRepo,
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, pair)
@@ -224,22 +291,22 @@ func TestTokenExpirationAndVerification(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
-	verified, err := service.Verify(testData.ctx, pair.AccessToken)
+	verified, err := service.Verify(ctx, pair.AccessToken)
 	assert.NoError(t, err, jwt.ErrTokenExpired)
 	assert.True(t, verified)
 
 	go func() {
 		defer wg.Done()
-		time.Sleep(testData.jwtAcc.Duration)
-		verified, err := service.Verify(testData.ctx, pair.AccessToken)
+		time.Sleep(service.jwtAcc.Duration)
+		verified, err := service.Verify(ctx, pair.AccessToken)
 		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
 		assert.False(t, verified)
 	}()
 
 	go func() {
 		defer wg.Done()
-		time.Sleep(testData.jwtRef.Duration)
-		_, err := jwt.ParseToken(pair.RefreshToken, testData.jwtRef.Secret)
+		time.Sleep(service.jwtRef.Duration)
+		_, err := jwt.ParseToken(pair.RefreshToken, service.jwtRef.Secret)
 		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
 	}()
 
@@ -247,7 +314,7 @@ func TestTokenExpirationAndVerification(t *testing.T) {
 }
 
 func TestLoginEmptyFieldsError(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -256,15 +323,17 @@ func TestLoginEmptyFieldsError(t *testing.T) {
 		Password: pwd,
 	}
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.ErrorIs(t, err, ErrBadCredentials)
 	assert.Empty(t, pair)
 }
 
 func TestLoginWrongPasswordError(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -281,18 +350,21 @@ func TestLoginWrongPasswordError(t *testing.T) {
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{
+		accRepo: accRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.ErrorIs(t, err, ErrBadCredentials)
 	assert.Empty(t, pair)
 }
 
 func TestLoginActivationErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	pwd := "Test"
 	testAccount := &entities.Account{
@@ -309,72 +381,84 @@ func TestLoginActivationErr(t *testing.T) {
 	}
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, testAccount.Email).Return(bdTestAccount, nil).Once()
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("IsActivated", testData.ctx, testAccount.ID).Return(false, nil).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("IsActivated", ctx, testAccount.ID).Return(false, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Login(testData.ctx, testAccount)
+	sCfg := cfg{
+		accRepo:  accRepo,
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Login(ctx, testAccount)
 
 	assert.Error(t, err)
 	assert.Empty(t, pair)
 }
 
 func TestLogout(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
-	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
+	tokenRepo.On("Delete", ctx, refreshToken.RefreshToken).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err := service.Logout(testData.ctx, refreshToken)
+	sCfg := cfg{
+		tokRepo: tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	err := service.Logout(ctx, refreshToken)
 
 	assert.NoError(t, err)
 }
 
 func TestLogoutErrNotFoundToken(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
 	err := errors.New("test")
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(nil, err).Once()
-	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken.RefreshToken).Return(nil, err).Once()
+	tokenRepo.On("Delete", ctx, refreshToken.RefreshToken).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.Logout(testData.ctx, refreshToken)
+	sCfg := cfg{
+		tokRepo: tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	err = service.Logout(ctx, refreshToken)
 
 	assert.Error(t, err)
 }
 
 func TestLogoutErrDelete(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	refreshToken := &entities.LogoutRequest{RefreshToken: "testtoken"}
 	err := errors.New("test")
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
-	tokenRepo.On("Delete", testData.ctx, refreshToken.RefreshToken).Return(err).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken.RefreshToken).Return(&entities.Token{}, nil).Once()
+	tokenRepo.On("Delete", ctx, refreshToken.RefreshToken).Return(err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.Logout(testData.ctx, refreshToken)
+	sCfg := cfg{
+		tokRepo: tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	err = service.Logout(ctx, refreshToken)
 
 	assert.Error(t, err)
 }
 
 func TestActivateAccount(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "testlink"
 	bdLink := &entities.Link{
@@ -385,35 +469,41 @@ func TestActivateAccount(t *testing.T) {
 	}
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("Get", testData.ctx, link).Return(bdLink, nil).Once()
-	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(nil).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("Get", ctx, link).Return(bdLink, nil).Once()
+	linkRepo.On("Update", ctx, bdLink.ID, bdLink).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err := service.ActivateAccount(testData.ctx, link)
+	sCfg := cfg{
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	err := service.ActivateAccount(ctx, link)
 
 	assert.NoError(t, err)
 	assert.Equal(t, bdLink.IsActivated, true)
 }
 
 func TestActivateAccountGetErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "testlink"
 	err := errors.New("test")
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("Get", testData.ctx, link).Return(nil, err).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("Get", ctx, link).Return(nil, err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.ActivateAccount(testData.ctx, link)
+	sCfg := cfg{
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	err = service.ActivateAccount(ctx, link)
 
 	assert.Error(t, err)
 }
 
 func TestActivateAccountUpdateErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "testlink"
 	bdLink := &entities.Link{
@@ -425,283 +515,326 @@ func TestActivateAccountUpdateErr(t *testing.T) {
 	err := errors.New("test")
 
 	linkRepo := &mocks.LinkRepo{}
-	linkRepo.On("Get", testData.ctx, link).Return(bdLink, nil).Once()
-	linkRepo.On("Update", testData.ctx, bdLink.ID, bdLink).Return(err).Once()
-	testData.linkRepo = linkRepo
+	linkRepo.On("Get", ctx, link).Return(bdLink, nil).Once()
+	linkRepo.On("Update", ctx, bdLink.ID, bdLink).Return(err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	err = service.ActivateAccount(testData.ctx, link)
+	sCfg := cfg{
+		linkRepo: linkRepo,
+	}
+
+	service := NewService(sCfg)
+	err = service.ActivateAccount(ctx, link)
 
 	assert.Error(t, err)
 }
 
 func TestRefresh(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	testAcc := &entities.Account{ID: 1, Username: "test"}
-	refreshToken, _ := jwt.NewToken(testAcc, testData.jwtRef.Secret, testData.jwtRef.Duration)
+	jwtRef := &config.JWTRefreshConfig{
+		Secret:   "test_ref",
+		Duration: 5 * time.Second,
+	}
+
+	refreshToken, _ := jwt.NewToken(testAcc, jwtRef.Secret, jwtRef.Duration)
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUserID", testData.ctx, "1").Return(testAcc, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByUserID", ctx, "1").Return(testAcc, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Refresh(testData.ctx, refreshToken)
+	sCfg := cfg{
+		accRepo: accRepo,
+		tokRepo: tokenRepo,
+		jwtRef:  jwtRef,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Refresh(ctx, refreshToken)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pair)
 }
 
 func TestRefreshTokErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	refreshToken := "testtoken"
 	err := errors.New("test")
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken).Return(nil, err).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken).Return(nil, err).Once()
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUserID", testData.ctx, "1").Return(&entities.Account{ID: 1, Username: "test"}, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByUserID", ctx, "1").Return(&entities.Account{ID: 1, Username: "test"}, nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Refresh(testData.ctx, refreshToken)
+	sCfg := cfg{
+		accRepo: accRepo,
+		tokRepo: tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Refresh(ctx, refreshToken)
 
 	assert.Error(t, err)
 	assert.Empty(t, pair)
 }
 
 func TestRefreshAccErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	refreshToken := "testtoken"
 	err := errors.New("test")
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("Get", testData.ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("Get", ctx, refreshToken).Return(&entities.Token{UserID: 1}, nil).Once()
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByUserID", testData.ctx, "1").Return(nil, err).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByUserID", ctx, "1").Return(nil, err).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	pair, err := service.Refresh(testData.ctx, refreshToken)
+	sCfg := cfg{
+		accRepo: accRepo,
+		tokRepo: tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	pair, err := service.Refresh(ctx, refreshToken)
 
 	assert.Error(t, err)
 	assert.Empty(t, pair)
 }
 
 func TestSendPwdLink(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	email := "test"
 	link := "test"
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, email).Return(&entities.Account{}, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, email).Return(&entities.Account{}, nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByEmail", testData.ctx, email).Return(&entities.PwdLink{Email: email, Link: link}, nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByEmail", ctx, email).Return(&entities.PwdLink{Email: email, Link: link}, nil).Once()
 
 	mailer := &mocks.Mailer{}
 	mailer.On("SendPwdMail", email, link).Return(nil).Once()
-	testData.mailer = mailer
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.SendPwdLink(testData.ctx, email)
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		mailer:      mailer,
+	}
+
+	service := NewService(sCfg)
+
+	success, err := service.SendPwdLink(ctx, email)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, success)
 }
 
 func TestSendPwdLinkCreateLink(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	email := "test"
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, email).Return(&entities.Account{}, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, email).Return(&entities.Account{}, nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByEmail", testData.ctx, email).Return(nil, ErrLinkNotFound).Once()
-	pwdLinkRepo.On("Create", testData.ctx, mock.AnythingOfType("*entities.PwdLink")).Return(nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByEmail", ctx, email).Return(nil, ErrLinkNotFound).Once()
+	pwdLinkRepo.On("Create", ctx, mock.AnythingOfType("*entities.PwdLink")).Return(nil).Once()
 
 	mailer := &mocks.Mailer{}
 	mailer.On("SendPwdMail", email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.mailer = mailer
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.SendPwdLink(testData.ctx, email)
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		mailer:      mailer,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.SendPwdLink(ctx, email)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, success)
 }
 
 func TestSendPwdLinkErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	email := "test"
 	tErr := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("GetByEmail", testData.ctx, email).Return(&entities.Account{}, nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("GetByEmail", ctx, email).Return(&entities.Account{}, nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByEmail", testData.ctx, email).Return(nil, tErr).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByEmail", ctx, email).Return(nil, tErr).Once()
 
 	mailer := &mocks.Mailer{}
 	mailer.On("SendPwdMail", email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.mailer = mailer
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.SendPwdLink(testData.ctx, email)
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		mailer:      mailer,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.SendPwdLink(ctx, email)
 
 	assert.ErrorIs(t, err, tErr)
 	assert.Empty(t, success)
 }
 
 func TestChangePassword(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "test"
 	email := "test"
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("UpdatePwdByEmail", ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
-	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByLink", ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
+	pwdLinkRepo.On("Delete", ctx, link).Return(nil).Once()
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("DeleteAllByEmail", ctx, email).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		tokRepo:     tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.ChangePwd(ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, success)
 }
 
 func TestChangePasswordGetByLinkErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "test"
 	email := "test"
 	tErr := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("UpdatePwdByEmail", ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(nil, tErr).Once()
-	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByLink", ctx, link).Return(nil, tErr).Once()
+	pwdLinkRepo.On("Delete", ctx, link).Return(nil).Once()
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("DeleteAllByEmail", ctx, email).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		tokRepo:     tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.ChangePwd(ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
 	assert.ErrorIs(t, err, tErr)
 	assert.Empty(t, success)
 }
 
 func TestChangePasswordUpdatePwdByEmailErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "test"
 	email := "test"
 	tErr := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(tErr).Once()
-	testData.accRepo = accRepo
+	accRepo.On("UpdatePwdByEmail", ctx, email, mock.AnythingOfType("string")).Return(tErr).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
-	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByLink", ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
+	pwdLinkRepo.On("Delete", ctx, link).Return(nil).Once()
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("DeleteAllByEmail", ctx, email).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+	sCfg := cfg{
+		accRepo:     accRepo,
+		tokRepo:     tokenRepo,
+		pwdLinkRepo: pwdLinkRepo,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.ChangePwd(ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
 	assert.ErrorIs(t, err, tErr)
 	assert.Empty(t, success)
 }
 
 func TestChangePasswordDeleteErr(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "test"
 	email := "test"
 	tErr := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("UpdatePwdByEmail", ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
-	pwdLinkRepo.On("Delete", testData.ctx, link).Return(tErr).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByLink", ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
+	pwdLinkRepo.On("Delete", ctx, link).Return(tErr).Once()
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(nil).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("DeleteAllByEmail", ctx, email).Return(nil).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		tokRepo:     tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.ChangePwd(ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
 	assert.ErrorIs(t, err, tErr)
 	assert.Empty(t, success)
 }
 
 func TestChangePasswordDeleteAllAccsByEmail(t *testing.T) {
-	testData := NewDefaultTestData()
+	ctx := context.Background()
 
 	link := "test"
 	email := "test"
 	tErr := errors.New("test")
 
 	accRepo := &mocks.AccountRepo{}
-	accRepo.On("UpdatePwdByEmail", testData.ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
-	testData.accRepo = accRepo
+	accRepo.On("UpdatePwdByEmail", ctx, email, mock.AnythingOfType("string")).Return(nil).Once()
 
 	pwdLinkRepo := &mocks.PwdLinkRepo{}
-	pwdLinkRepo.On("GetByLink", testData.ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
-	pwdLinkRepo.On("Delete", testData.ctx, link).Return(nil).Once()
-	testData.pwdLinkRepo = pwdLinkRepo
+	pwdLinkRepo.On("GetByLink", ctx, link).Return(&entities.PwdLink{Email: email}, nil).Once()
+	pwdLinkRepo.On("Delete", ctx, link).Return(nil).Once()
 
 	tokenRepo := &mocks.TokenRepo{}
-	tokenRepo.On("DeleteAllByEmail", testData.ctx, email).Return(tErr).Once()
-	testData.tokRepo = tokenRepo
+	tokenRepo.On("DeleteAllByEmail", ctx, email).Return(tErr).Once()
 
-	service := NewAuthService(testData.log, testData.accRepo, testData.tokRepo, testData.linkRepo, testData.jwtAcc, testData.jwtRef, testData.mailer, testData.pwdLinkRepo)
-	success, err := service.ChangePwd(testData.ctx, &entities.ChPwdLink{Link: link, Password: "test"})
+	sCfg := cfg{
+		accRepo:     accRepo,
+		pwdLinkRepo: pwdLinkRepo,
+		tokRepo:     tokenRepo,
+	}
+
+	service := NewService(sCfg)
+	success, err := service.ChangePwd(ctx, &entities.ChPwdLink{Link: link, Password: "test"})
 
 	assert.ErrorIs(t, err, tErr)
 	assert.Empty(t, success)

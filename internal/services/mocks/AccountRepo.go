@@ -42,6 +42,24 @@ func (_m *AccountRepo) Create(ctx context.Context, account *entities.Account) (i
 	return r0, r1
 }
 
+// Delete provides a mock function with given fields: ctx, uid
+func (_m *AccountRepo) Delete(ctx context.Context, uid int) error {
+	ret := _m.Called(ctx, uid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, uid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetByEmail provides a mock function with given fields: ctx, email
 func (_m *AccountRepo) GetByEmail(ctx context.Context, email string) (*entities.Account, error) {
 	ret := _m.Called(ctx, email)

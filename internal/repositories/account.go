@@ -100,3 +100,18 @@ func (r *AccountRepository) UpdatePwdByEmail(ctx context.Context, email string, 
 
 	return nil
 }
+
+func (r *AccountRepository) Delete(ctx context.Context, uid int) error {
+	const op = "repositories.AccountRepository.Delete"
+
+	_, err := r.Pool.Exec(
+		ctx,
+		"DELETE FROM account WHERE id=$1",
+		uid)
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

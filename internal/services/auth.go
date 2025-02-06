@@ -11,8 +11,10 @@ import (
 	"github.com/Homyakadze14/AuthMicroservice/internal/config"
 	"github.com/Homyakadze14/AuthMicroservice/internal/entities"
 	"github.com/Homyakadze14/AuthMicroservice/internal/lib/jwt"
+	userv1 "github.com/Homyakadze14/AuthMicroservice/proto/gen/user"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -30,6 +32,7 @@ type AccountRepo interface {
 	GetByEmail(ctx context.Context, email string) (*entities.Account, error)
 	GetByUserID(ctx context.Context, uid string) (*entities.Account, error)
 	UpdatePwdByEmail(ctx context.Context, email string, password string) error
+	Delete(ctx context.Context, uid int) error
 }
 
 type TokenRepo interface {
@@ -67,6 +70,11 @@ type AuthService struct {
 	jwtRef      *config.JWTRefreshConfig
 	mailer      Mailer
 	pwdLinkRepo PwdLinkRepo
+	userService UserServiceI
+}
+
+type UserServiceI interface {
+	CreateDefault(ctx context.Context, in *userv1.CreateDefaultRequest, opts ...grpc.CallOption) (*userv1.CreateDefaultResponse, error)
 }
 
 func NewAuthService(
@@ -78,6 +86,7 @@ func NewAuthService(
 	jwtRef *config.JWTRefreshConfig,
 	mailer Mailer,
 	pwdLinkRepo PwdLinkRepo,
+	userService UserServiceI,
 ) *AuthService {
 	return &AuthService{
 		log:         log,
@@ -88,6 +97,7 @@ func NewAuthService(
 		jwtRef:      jwtRef,
 		mailer:      mailer,
 		pwdLinkRepo: pwdLinkRepo,
+		userService: userService,
 	}
 }
 
@@ -111,6 +121,16 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) error
 	// Create user
 	uid, err := s.accRepo.Create(ctx, acc)
 	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = s.userService.CreateDefault(ctx, &userv1.CreateDefaultRequest{UserId: int64(uid)})
+	if err != nil {
+		arErr := s.accRepo.Delete(ctx, uid)
+		if arErr != nil {
+			err = errors.Join(err, arErr)
+		}
 		log.Error(err.Error())
 		return fmt.Errorf("%s: %w", op, err)
 	}

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option go_package = "../gen;userv1";
+
+service User {
+    rpc CreateDefault(CreateDefaultRequest) returns (CreateDefaultResponse);
+    rpc UpdateInfo(UpdateInfoRequest) returns (UpdateInfoResponse);
+    rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+}
+
+message CreateDefaultRequest {
+    int64 user_id = 1;
+}
+
+message CreateDefaultResponse {
+  bool success = 1;
+}
+
+message UpdateInfoRequest {
+  int64 user_id = 1;
+  string firstname = 2;
+  string middlename = 3;
+  string lastname = 4;
+  string gender = 5;
+  string phone = 6;
+  string icon_url = 7;
+}
+
+message UpdateInfoResponse {
+  bool success = 1;
+}
+
+message GetInfoRequest {
+  int64 user_id = 1;
+}
+
+message GetInfoResponse {
+  string firstname = 1;
+  string middlename = 2;
+  string lastname = 3;
+  string gender = 4;
+  string phone = 5;
+  string icon_url = 6;
+}

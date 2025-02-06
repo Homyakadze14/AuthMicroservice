@@ -25,3 +25,6 @@ mailer:
 base_links:
   activation_url: "http://localhost:5000/activate/"
   change_password_url: "http://localhost:5000/change_password/"
+
+user_service:
+  address: "localhost:5001"
