@@ -25,7 +25,7 @@ func init() {
 		log.Fatalf("migrate: environment variable not declared: PG_URL")
 	}
 
-	databaseURL += "?sslmode=disable"
+	databaseURL += "?x-migrations-table=auth_migrations&sslmode=disable"
 
 	var (
 		attempts = _defaultAttempts
