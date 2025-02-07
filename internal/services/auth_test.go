@@ -99,14 +99,9 @@ func TestRegister(t *testing.T) {
 	mailer := &mocks.Mailer{}
 	mailer.On("SendActivationMail", testAcc.Email, mock.Anything).Return(nil).Once()
 
-	userService := &mocks.UserServiceI{}
-	userService.On("CreateDefault", ctx,
-		&userv1.CreateDefaultRequest{UserId: int64(testAcc.ID)}).Return(&userv1.CreateDefaultResponse{}, nil).Once()
-
 	sCfg := cfg{
-		accRepo:     accRepo,
-		mailer:      mailer,
-		userService: userService,
+		accRepo: accRepo,
+		mailer:  mailer,
 	}
 
 	t.Log("Check registration")
@@ -149,30 +144,6 @@ func TestRegisterLinkError(t *testing.T) {
 
 	sCfg := cfg{
 		linkRepo:    linkRepo,
-		userService: userService,
-	}
-
-	service := NewService(sCfg)
-	err = service.Register(ctx, &entities.Account{})
-
-	assert.Error(t, err)
-}
-
-func TestRegisterCreateUser(t *testing.T) {
-	ctx := context.Background()
-
-	err := errors.New("test")
-
-	accRepo := &mocks.AccountRepo{}
-	accRepo.On("Create", ctx, mock.AnythingOfType("*entities.Account")).Return(0, nil).Once()
-	accRepo.On("Delete", ctx, mock.AnythingOfType("int")).Return(nil).Once()
-
-	userService := &mocks.UserServiceI{}
-	userService.On("CreateDefault", ctx,
-		&userv1.CreateDefaultRequest{UserId: 0}).Return(nil, err).Once()
-
-	sCfg := cfg{
-		accRepo:     accRepo,
 		userService: userService,
 	}
 
@@ -472,8 +443,13 @@ func TestActivateAccount(t *testing.T) {
 	linkRepo.On("Get", ctx, link).Return(bdLink, nil).Once()
 	linkRepo.On("Update", ctx, bdLink.ID, bdLink).Return(nil).Once()
 
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: int64(bdLink.UserID)}).Return(&userv1.CreateDefaultResponse{}, nil).Once()
+
 	sCfg := cfg{
-		linkRepo: linkRepo,
+		linkRepo:    linkRepo,
+		userService: userService,
 	}
 
 	service := NewService(sCfg)
@@ -518,8 +494,44 @@ func TestActivateAccountUpdateErr(t *testing.T) {
 	linkRepo.On("Get", ctx, link).Return(bdLink, nil).Once()
 	linkRepo.On("Update", ctx, bdLink.ID, bdLink).Return(err).Once()
 
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: int64(bdLink.UserID)}).Return(&userv1.CreateDefaultResponse{}, nil).Once()
+
 	sCfg := cfg{
-		linkRepo: linkRepo,
+		linkRepo:    linkRepo,
+		userService: userService,
+	}
+
+	service := NewService(sCfg)
+	err = service.ActivateAccount(ctx, link)
+
+	assert.Error(t, err)
+}
+
+func TestActivateCreateUserErr(t *testing.T) {
+	ctx := context.Background()
+
+	link := "testlink"
+	bdLink := &entities.Link{
+		ID:          1,
+		UserID:      1,
+		Link:        link,
+		IsActivated: false,
+	}
+	err := errors.New("test")
+
+	linkRepo := &mocks.LinkRepo{}
+	linkRepo.On("Get", ctx, link).Return(bdLink, nil).Once()
+	linkRepo.On("Update", ctx, bdLink.ID, bdLink).Return(nil).Once()
+
+	userService := &mocks.UserServiceI{}
+	userService.On("CreateDefault", ctx,
+		&userv1.CreateDefaultRequest{UserId: int64(bdLink.UserID)}).Return(&userv1.CreateDefaultResponse{}, err).Once()
+
+	sCfg := cfg{
+		linkRepo:    linkRepo,
+		userService: userService,
 	}
 
 	service := NewService(sCfg)

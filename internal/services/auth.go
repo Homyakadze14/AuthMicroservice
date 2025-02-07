@@ -125,16 +125,6 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) error
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	_, err = s.userService.CreateDefault(ctx, &userv1.CreateDefaultRequest{UserId: int64(uid)})
-	if err != nil {
-		arErr := s.accRepo.Delete(ctx, uid)
-		if arErr != nil {
-			err = errors.Join(err, arErr)
-		}
-		log.Error(err.Error())
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
 	// Create activation link
 	link := &entities.Link{
 		UserID: uid,
@@ -274,6 +264,12 @@ func (s *AuthService) ActivateAccount(ctx context.Context, link string) error {
 
 	log.Info("trying to activate account")
 	bdLink, err := s.linkRepo.Get(ctx, link)
+	if err != nil {
+		log.Error(err.Error())
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = s.userService.CreateDefault(ctx, &userv1.CreateDefaultRequest{UserId: int64(bdLink.UserID)})
 	if err != nil {
 		log.Error(err.Error())
 		return fmt.Errorf("%s: %w", op, err)
