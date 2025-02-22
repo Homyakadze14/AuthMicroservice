@@ -198,13 +198,13 @@ func (s *AuthService) Login(ctx context.Context, acc *entities.Account) (*entiti
 	}
 
 	// Generate tokens
-	accTok, err := jwt.NewToken(acc, s.jwtAcc.Secret, s.jwtAcc.Duration)
+	accTok, err := jwt.NewToken(dbAcc, s.jwtAcc.Secret, s.jwtAcc.Duration)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	refTok, err := jwt.NewToken(acc, s.jwtRef.Secret, s.jwtRef.Duration)
+	refTok, err := jwt.NewToken(dbAcc, s.jwtRef.Secret, s.jwtRef.Duration)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, fmt.Errorf("%s: %w", op, err)
