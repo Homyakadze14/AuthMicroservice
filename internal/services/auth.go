@@ -138,10 +138,12 @@ func (s *AuthService) Register(ctx context.Context, acc *entities.Account) error
 
 	// Send activation link
 	go func() {
+		log.Info("trying to send activation mail")
 		err := s.mailer.SendActivationMail(acc.Email, link.Link)
 		if err != nil {
 			log.Error(fmt.Errorf("%s: %w", op, err).Error())
 		}
+		log.Info("mail successfully sended")
 	}()
 	log.Info("successfully registered account")
 
@@ -407,10 +409,12 @@ func (s *AuthService) SendPwdLink(ctx context.Context, email string) (bool, erro
 
 	// Send pwd link
 	go func() {
+		log.Info("trying to send activation mail")
 		err := s.mailer.SendPwdMail(link.Email, link.Link)
 		if err != nil {
 			log.Error(fmt.Errorf("%s: %w", op, err).Error())
 		}
+		log.Info("mail successfully sended")
 	}()
 	log.Info("password link has been sent")
 
