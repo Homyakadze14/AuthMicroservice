@@ -36,6 +36,7 @@ func (m *Mailer) SendMail(subject, body string, to string) error {
 		log.Fatal(err)
 		return err
 	}
+	log.Printf("Email sent to %s", to)
 
 	return nil
 }
