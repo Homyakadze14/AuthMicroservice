@@ -33,7 +33,7 @@ func (m *Mailer) SendMail(subject, body string, to string) error {
 
 	err := smtp.SendMail(m.addr, m.auth, m.from, []string{to}, []byte(msg))
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err.Error())
 		return err
 	}
 	log.Printf("Email sent to %s", to)
